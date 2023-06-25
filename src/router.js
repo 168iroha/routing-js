@@ -12,7 +12,7 @@ import { IRouteTable } from "./route-table.js";
 
 /**
  * @template T
- * @typedef { { router: IRouter<T>; route?: Route<T>; }[] } TraceRoute ルート解決の経路
+ * @typedef { { router: IRouter<T>; route?: string | Route<T>; }[] } TraceRoute ルート解決の経路
  */
 
 /**
