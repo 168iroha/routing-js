@@ -9,6 +9,11 @@ import { jest } from '@jest/globals'
  */
 
 /**
+ * @template T
+ * @typedef { import("../../src/router.js").RouterObserver<T> } RouterObserver ルート解決に関するオブザーバ
+ */
+
+/**
  * ルートテーブルのスタブ
  * @template T
  * @implements { IRouteTable<T> }
@@ -49,9 +54,10 @@ describe('Router', () => {
 		{ path: '/', body: '/' },
 		{ path: '/page1', body: '/page1' },
 		{ path: '/page2', body: '/page2' },
+		{ path: '/page3', name: 'page3', body: '/page3' },
 	];
-	/** @type { jest.Mock<(route: Route<T>) => boolean> } ルーティング通知を受け取るオブザーバのモック  */
-	const mockObserver = jest.fn(route => true);
+	/** @type { jest.Mock<RouterObserver<T>> } ルーティング通知を受け取るオブザーバのモック  */
+	const mockObserver = jest.fn(route => {});
 	/** @type { IRouteTable } ルートテーブル */
 	const routeTable = new StubRouteTable(routes);
 
@@ -59,81 +65,71 @@ describe('Router', () => {
 		mockObserver.mockClear();
 	});
 
-	describe('Router.constructor()', () => {
-		it('デフォルトのルート', () => {
-			new Router(routeTable, mockObserver);
-			expect(mockObserver.mock.calls[0][0].path).toBe('/');
-			expect(mockObserver.mock.calls).toHaveLength(1);
-		});
-	
-		it('初期状態のルートの指定', () => {
-			new Router(routeTable, mockObserver, '/page1');
-			expect(mockObserver.mock.calls[0][0].path).toBe('/page1');
-			expect(mockObserver.mock.calls).toHaveLength(1);
-		});
-	
-		it('存在しないルートを初期状態のルートに指定', () => {
-			const path = '/unknown';
-			expect(routeTable.get(path)).toBe(undefined);
-			expect(() => new Router(routeTable, mockObserver, path)).toThrow();
-			expect(mockObserver.mock.calls).toHaveLength(0);
-		});
-
-		it('初期状態のルートなし', () => {
-			new Router(routeTable, mockObserver, null);
-			expect(mockObserver.mock.calls).toHaveLength(0);
-		});
-	});
-
 	describe('Router.routing()', () => {
 		it('Pathを指定したルーティング', () => {
 			const router = new Router(routeTable, mockObserver);
-			expect(router.routing('/page1')).toBe(true);
-			expect(router.routing('/page2')).toBe(true);
-			expect(mockObserver.mock.calls[1][0].path).toBe('/page1');
-			expect(mockObserver.mock.calls[2][0].path).toBe('/page2');
-			expect(mockObserver.mock.calls).toHaveLength(3);
+			expect(router.routing('/page1').length).toBe(1);
+			expect(router.routing('/page2').length).toBe(1);
+			expect(mockObserver.mock.calls[0][0].path).toBe('/page1');
+			expect(mockObserver.mock.calls[1][0].path).toBe('/page2');
+			expect(mockObserver.mock.calls).toHaveLength(2);
 			// 取得したルートを自由に書き換え
-			expect(() => mockObserver.mock.calls[1][0].body = 'body').not.toThrow();
-			expect(mockObserver.mock.calls[1][0].body).toBe('body');
+			expect(() => mockObserver.mock.calls[0][0].body = 'body').not.toThrow();
+			expect(mockObserver.mock.calls[0][0].body).toBe('body');
 			// pathの書き換えは不可
-			expect(() => mockObserver.mock.calls[1][0].path = 'path').toThrow();
+			expect(() => mockObserver.mock.calls[0][0].path = 'path').toThrow();
 		});
 
 		it('Routeを指定したルーティング', () => {
 			const router = new Router(routeTable, mockObserver);
-			expect(router.routing({ path: '/page1' })).toBe(true);
-			expect(router.routing({ path: '/page2' })).toBe(true);
-			expect(mockObserver.mock.calls[1][0].path).toBe('/page1');
+			expect(router.routing({ path: '/page1' }).length).toBe(1);
+			expect(router.routing({ path: '/page2' }).length).toBe(1);
+			expect(mockObserver.mock.calls[0][0].path).toBe('/page1');
+			expect(mockObserver.mock.calls[1][0].path).toBe('/page2');
+			expect(mockObserver.mock.calls).toHaveLength(2);
+		});
+
+		it('オブザーバによるリダイレクト', () => {
+			const mockObserver = jest.fn(route => route.path === '/page2' || route.path === '/' ? undefined : { path: '/page2' });
+			const router = new Router(routeTable, mockObserver);
+			expect(router.routing({ path: '/page1' }).length).toBe(1);
+			expect(router.routing({ path: '/page2' }).length).toBe(1);
+			expect(mockObserver.mock.calls[0][0].path).toBe('/page1');
+			expect(mockObserver.mock.calls[1][0].path).toBe('/page2');
 			expect(mockObserver.mock.calls[2][0].path).toBe('/page2');
 			expect(mockObserver.mock.calls).toHaveLength(3);
 		});
 
-		it('オブザーバによるリダイレクト', () => {
-			const mockObserver = jest.fn(route => route.path === '/page2' || route.path === '/' ? true : { path: '/page2' });
+		it('戻り値の確認', () => {
 			const router = new Router(routeTable, mockObserver);
-			expect(router.routing({ path: '/page1' })).toBe(true);
-			expect(router.routing({ path: '/page2' })).toBe(true);
-			expect(mockObserver.mock.calls[1][0].path).toBe('/page1');
-			expect(mockObserver.mock.calls[2][0].path).toBe('/page2');
-			expect(mockObserver.mock.calls[3][0].path).toBe('/page2');
-			expect(mockObserver.mock.calls).toHaveLength(4);
+			const traceRoute = router.routing(routes[3]);
+			expect(traceRoute.length).toBe(1);
+			expect('route' in traceRoute[0]).toBe(true);
+			expect(traceRoute[0].router).toBe(router);
+			// pathとname、bodyはルートテーブルから直接取得したものと同一であることを保証
+			const route = routeTable.get(routes[3]);
+			expect(traceRoute[0].route.path).toBe(route.path);
+			expect(traceRoute[0].route.name).toBe(route.name);
+			expect(traceRoute[0].route.body).toBe(route.body);
 		});
 
 		it('存在しないルートの指定', () => {
 			const path = '/unknown';
 			expect(routeTable.get(path)).toBe(undefined);
 			const router = new Router(routeTable, mockObserver);
-			expect(() => router.routing(path)).toThrow();
-			expect(mockObserver.mock.calls).toHaveLength(1);
+			const traceRoute = router.routing(path);
+			expect(traceRoute.length).toBe(1);
+			expect('route' in traceRoute[0]).toBe(false);
+			expect(traceRoute[0].router === router).toBe(true);
+			expect(mockObserver.mock.calls).toHaveLength(0);
 		});
 
 		it('Restによるルーティング', () => {
 			const router = new Router(routeTable, mockObserver);
-			expect(router.routing({ path: '/page1', rest: '/page2', segment: true })).toBe(true);
-			expect(mockObserver.mock.calls[1][0].path).toBe('/page1');
-			expect(mockObserver.mock.calls[1][0].body).toBe('/page2');
-			expect(mockObserver.mock.calls).toHaveLength(2);
+			expect(router.routing({ path: '/page1', rest: '/page2', segment: true }).length).toBe(1);
+			expect(mockObserver.mock.calls[0][0].path).toBe('/page1');
+			expect(mockObserver.mock.calls[0][0].body).toBe('/page2');
+			expect(mockObserver.mock.calls).toHaveLength(1);
 		});
 	});
 

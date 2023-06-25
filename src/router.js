@@ -1,18 +1,40 @@
-import { IRouteTable } from "./route-table";
+import { IRouteTable } from "./route-table.js";
 
 /**
  * @template T
- * @typedef { import("./route-table").Route<T> } Route ルート情報
+ * @typedef { import("./route-table.js").Route<T> } Route ルート情報
  */
 
 /**
  * @template T
- * @typedef { (route: Route<T>) => boolean | Route<T> } RouterObserver ルート遷移に関するオブザーバ
+ * @typedef { (route: Route<T>, trace: Readonly<TraceRoute<T>>) => TraceRoute<T> | Route<T> | undefined | null } RouterObserver ルート解決に関するオブザーバ
  */
+
+/**
+ * @template T
+ * @typedef { { router: IRouter<T>; route?: string | Route<T>; }[] } TraceRoute ルート解決の経路
+ */
+
+/**
+ * ルータのインターフェース
+ * @template T
+ * @interface
+ */
+/* istanbul ignore next */
+class IRouter {
+	/**
+	 * ルーティングの実施
+	 * @param { string | Route<T> } route 遷移先のルート情報
+	 * @param { Readonly<TraceRoute<T>> } trace 現時点でのルート解決の経路
+	 * @return { TraceRoute<T> } ルート解決の経路
+	 */
+	routing(route, trace = []) { throw new Error('not implemented.'); }
+}
 
 /**
  * ルータクラス
  * @template T
+ * @implements { IRouter<T> }
  */
 class Router {
 	/**
@@ -28,28 +50,25 @@ class Router {
 	 * ルータの初期化
 	 * @param { IRouteTable<T> } routeTable 初期状態のルート情報
 	 * @param { RouterObserver<T> } observer ルーティングの通知を受け取るオブザーバ
-	 * @param { (string | Route<T>)? } defaultRoute 初期状態のルート
 	 */
-	constructor(routeTable, observer, defaultRoute = '/') {
+	constructor(routeTable, observer) {
 		this.#routeTable = routeTable;
 		this.#observer = observer;
-		if (defaultRoute !== null) {
-			this.routing(defaultRoute);
-		}
 	}
 
 	/**
 	 * ルーティングの実施
 	 * @param { string | Route<T> } route 遷移先のルート情報
-	 * @return { boolean } trueならルーティング成功、falseならルーティング失敗
+	 * @param {  Readonly<TraceRoute<T>> } trace 現時点でのルート解決の経路
+	 * @return { TraceRoute<T> } ルート解決の経路
 	 */
-	routing(route) {
+	routing(route, trace = []) {
 		// restが存在する場合はrestをpathとして取得
 		const r = this.#routeTable.get(route?.segment === true && 'rest' in route ? { path: route.rest } : route);
 		const path = typeof route === 'string' ? route : route.path;
 		const name = typeof route === 'string' ? undefined : route.name;
 		if (r === undefined) {
-			throw new Error(`The requested Route-Path '${path}' or Route-Name '${name}' was not found`);
+			return [ ...trace, { router: this } ];
 		}
 		const ret = this.#observer(new Proxy(r, {
 			// 解決済みのpathを返すようにするかつ変更不可にする
@@ -63,10 +82,15 @@ class Router {
 				}
 				return Reflect.set(...arguments);
 			}
-		}));
-		return (ret === true || ret === false) ? ret :
-				(ret === undefined || ret === null) ? true : this.routing(ret);
+		}), []);
+		if (Array.isArray(ret)) {
+			return [ ...trace, { router: this, route: r }, ...ret ];
+		}
+		if (ret === undefined || ret === null) {
+			return [ ...trace, { router: this, route: r } ];
+		}
+		return this.routing(ret, trace);
 	}
 }
 
-export { Router };
+export { Router, IRouter };

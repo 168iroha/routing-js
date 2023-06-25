@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<script type="module">
+			import { RouteTable, Router, BrowserHistoryStorage, RouteHistory } from '../../src/routing.core.js';
+
+			const body1 = (view) => {
+				const content = document.createElement('div');
+				content.textContent = `Show '/'`;
+				const enter = () => view.appendChild(content);
+				const leave = () => view.removeChild(content);
+				return { enter, leave };
+			};
+			const body2 = (view) => {
+				const content = document.createElement('div');
+				content.textContent = `Show '/page1'`;
+				const enter = () => view.appendChild(content);
+				const leave = () => view.removeChild(content);
+				return { enter, leave };
+			};
+			const body3 = (view) => {
+				const content = document.createElement('div');
+				content.textContent = `Show '/page2'`;
+				const enter = () => view.appendChild(content);
+				const leave = () => view.removeChild(content);
+				return { enter, leave };
+			};
+
+			const observer = (from, to) => {
+				if (from) {
+					for (const { route, router } of from) {
+						route.body.leave();
+					}
+				}
+				if (to) {
+					for (const { route, router } of to) {
+						route.body.enter();
+					}
+				}
+			};
+
+			const view = document.getElementById('view');
+			const routes = [
+				{ path: '/', body: body1(view) },
+				{ path: '/page1', body: body2(view) },
+				{ path: '/page2', body: body3(view) },
+			];
+			const routeTable = new RouteTable(routes);
+			const storage = new BrowserHistoryStorage(window.history, route => `#${route.path ?? route.name ?? route}`);
+			const router = new RouteHistory(
+				new Router(routeTable, router => {}),
+				storage, observer, observer, observer
+			);
+
+			window.addEventListener('popstate', e => {
+				const state = e.state;
+				if (state) {
+					// 「戻る」や「進む」のブラウザのイベントを通知する
+					router.notify(state);
+				}
+			});
+			window.addEventListener('DOMContentLoaded', e => {
+				// 初期状態の表示する要素の決定
+				router.replace(window.location.hash.length === 0 ? '/' : window.location.hash.substr(1));
+			});
+
+			// 遷移イベントの設置
+			document.getElementById('route-list').querySelectorAll('*[data-to]').forEach(e => {
+				e.addEventListener('click', () => router.push(e.dataset.to));
+			});
+		</script>
+	</head>
+	<body>
+		<ul id="route-list">
+			<li data-to="/">Routeの表示</li>
+			<li data-to="/page1">Page1の表示</li>
+			<li data-to="/page2">Page2の表示</li>
+		</ul>
+		<div id="view"></div>
+	</body>
+</html>
