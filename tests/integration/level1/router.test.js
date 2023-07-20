@@ -1,23 +1,23 @@
 
-import { RouteTable } from '../../src/route-table.js';
-import { Router } from '../../src/router.js';
-import { jest } from '@jest/globals'
+import { RouteTable } from '../../../src/level1/route-table.js';
+import { Router } from '../../../src/level1/router.js';
+import { jest } from '@jest/globals';
 
 /**
  * @template T
- * @typedef { import("../../src/route-table.js").Route<T> } Route ルート情報
+ * @typedef { import("../../../src/level1/route-table.js").Route<T> } Route ルート情報
  */
 
 /**
  * @template T
- * @typedef { import("../../src/router.js").RouterObserver<T> } RouterObserver ルート遷移に関するオブザーバ
+ * @typedef { import("../../../src/level1/router.js").RouterObserver<T> } RouterObserver ルート遷移に関するオブザーバ
  */
 
 describe('Router', () => {
 	/** @type { jest.Mock<RouterObserver<T>> } ルーティング通知を受け取るオブザーバのモック  */
-	const mockObserver = jest.fn(route => {});
+	const mockObserver = jest.fn((route, trace) => {});
 	/** @type { jest.Mock<RouterObserver<T>> } ルートのボディのモック  */
-	const mockBody = jest.fn(route => {});
+	const mockBody = jest.fn((route, trace) => {});
 
 	beforeEach(() => {
 		mockObserver.mockClear();
@@ -45,7 +45,7 @@ describe('Router', () => {
 				{ path: '/page1/page1-1', body: mockBody }
 			]);
 			/** @type { Router<RouterObserver<T>> } メインのルータ */
-			const router = new Router(routeTable, (route, trace) => route.body(route, trace));
+			const router = new Router(routeTable, (route, trace) => route.body?.(route, trace));
 
 			/** @type { RouteTable<RouterObserver<T>> } 分散して管理するルートテーブル */
 			const subRouteTable = new RouteTable([
@@ -57,7 +57,7 @@ describe('Router', () => {
 			const subrouter = new Router(subRouteTable, (route, trace) => route.body(route, trace));
 
 			routeTable.get('/page1').body = (route, trace) => {
-				mockBody(route);
+				mockBody(route, trace);
 				// 別のルータでルーティングする
 				return subrouter.routing(route, trace);
 			};

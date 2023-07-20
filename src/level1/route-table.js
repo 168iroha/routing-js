@@ -7,7 +7,7 @@
  * @typedef {{
  *		params?: RouteParams;
  *		search?: string;
- *		body: T;
+ *		body?: T;
  *		segment?: boolean;
  *		rest?: string;
  * } & ({
@@ -18,6 +18,11 @@
  *		path: string;
  *		name: string;
  * })} Route ルート情報
+ */
+
+/**
+ * @template T
+ * @typedef { Route<T> | string } InputRoute ルート解決などの際に引数として入力するルート情報
  */
 
 /**
@@ -39,11 +44,31 @@
 /* istanbul ignore next */
 class IRouteTable {
 	/**
-	 * ルートの取得(ルート解決)
-	 * @param { string | Route<T> } route 遷移先のルート情報
+	 * ルートの追加
+	 * @param { InputRoute<T> } route 追加するルート
+	 * @return { Route<T> } 追加したルート情報
+	 */
+	add(route) { throw new Error('not implemented.'); }
+
+	/**
+	 * ルートの削除
+	 * @param { InputRoute<T> } route 削除対象のルート情報
+	 * @return { Route<T> } 削除したルート情報
+	 */
+	remove(route) { throw new Error('not implemented.'); }
+
+	/**
+	 * ルートの取得
+	 * @param { InputRoute<T> } route 取得対象のルート情報
 	 * @return { Route<T> & { search: string; } | undefined } 解決したルート情報
 	 */
 	get(route) { throw new Error('not implemented.'); }
+
+	/**
+	 * 全てルートの走査
+	 * @param { (route: Route<T>) => unknown } callback 走査時に呼びだすコールバック
+	 */
+	forEach(callback) { throw new Error('not implemented.'); }
 }
 
 /**
@@ -72,7 +97,7 @@ class RouteTable {
 	 * ルートテーブルの初期化
 	 * @param { Route<T>[] } routes 初期状態のルート情報
 	 */
-	constructor(routes) {
+	constructor(routes = []) {
 		Object.freeze(this.#routeTree.name);
 		Object.freeze(this.#routeTree.parent);
 
@@ -267,17 +292,12 @@ class RouteTable {
 
 	/**
 	 * ルートの置換を行う
-	 * @param { Route<T> | string | undefined } dest 置換先のルート。undefinedの場合は新規作成する
-	 * @param { Route<T> | string | undefined } src 置換元のルート。stringの場合はpathのみの置換、undefinedの場合はdestの削除のみ行う
+	 * @param { InputRoute<T> | undefined } dest 置換先のルート。undefinedの場合は新規作成する
+	 * @param { InputRoute<T> | undefined } src 置換元のルート。stringの場合はpathのみの置換、undefinedの場合はdestの削除のみ行う
 	 * @return { Route<T> | undefined } srcがundefinedであるときは置換元のルート、そうでない場合は置換結果のルート
 	 */
 	replace(dest, src) {
 		let result = undefined;
-
-		// 不正な引数型の組み合わせの検査
-		if (dest === undefined && typeof src === 'string') {
-			throw new Error(`The combination of 'dest' type 'undefined' and 'src' type 'String' is invalid.`);
-		}
 
 		// 置換元の削除の実施
 		if (dest !== undefined) {
@@ -336,8 +356,14 @@ class RouteTable {
 		if (src !== undefined) {
 			// 挿入対象のルートの構築
 			if (result === undefined) {
-				// 外部からpathやnameの変更を禁止するためにシャローコピー
-				result = { ...src };
+				// 単純にルート情報を各項目で置き換える
+				if (typeof src === 'string') {
+					result = { path: src };
+				}
+				else {
+					// 外部からpathやnameの変更を禁止するためにシャローコピー
+					result = { ...src };
+				}
 			}
 			else {
 				// 単純にルート情報を各項目で置き換える
@@ -397,9 +423,9 @@ class RouteTable {
 	}
 
 	/**
-	 * ルートを追加する
+	 * ルートの追加
 	 * 既に存在する場合は上書きする
-	 * @param { Route<T> } route 追加するルート
+	 * @param { InputRoute<T> } route 追加するルート
 	 * @return { Route<T> } 追加したルート情報
 	 */
 	add(route) {
@@ -408,7 +434,7 @@ class RouteTable {
 
 	/**
 	 * ルートの削除
-	 * @param { string | Route<T> } route 削除対象のルート情報
+	 * @param { InputRoute<T> } route 削除対象のルート情報
 	 * @return { Route<T> } 削除したルート情報
 	 */
 	remove(route) {
@@ -439,7 +465,7 @@ class RouteTable {
 
 	/**
 	 * ルートの取得
-	 * @param { string | Route<T> } route 取得対象のルート情報
+	 * @param { InputRoute<T> } route 取得対象のルート情報
 	 * @return { Route<T> & { search: string; } | undefined }取得したルート情報
 	 */
 	get(route) {
@@ -465,6 +491,37 @@ class RouteTable {
 				return this.#wrapWithProxy(r, { search: 'name' });
 			}
 			return undefined;
+		}
+	}
+
+	/**
+	 * 全てルートの走査
+	 * @param { (route: Route<T>) => unknown } callback 走査時に呼びだすコールバック
+	 */
+	forEach(callback) {
+		/** @type { RouteTree<T>[] } 深さ優先探索のためのスタック */
+		const stack = [this.#routeTree];
+
+		// ルートの木構造の走査
+		while (stack.length !== 0) {
+			const tree = stack.pop();
+			if ('params' in tree && Object.keys(tree.params).length !== 0) {
+				stack.push(...Object.values(tree.params));
+			}
+			if ('children' in tree && Object.keys(tree.children).length !== 0) {
+				stack.push(...Object.values(tree.children));
+			}
+			if ('route'in tree) {
+				callback(tree.route);
+			}
+		}
+
+		// ルートのインデックスの走査
+		for (const route of Object.values(this.#routeNameIndex)) {
+			if (!('path' in route)) {
+				// 走査済みでないルートについてコールバックを呼び出す
+				callback(route);
+			}
 		}
 	}
 }

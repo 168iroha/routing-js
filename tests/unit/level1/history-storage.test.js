@@ -1,9 +1,9 @@
 /** @jest-environment jsdom */
-import { BrowserHistoryStorage, MemoryHistoryStorage } from '../../src/history-storage.js';
+import { BrowserHistoryStorage, MemoryHistoryStorage } from '../../../src/level1/history-storage.js';
 
 /**
  * @template T
- * @typedef { import("../../src/route-table.js").Route<T> } Route ルート情報
+ * @typedef { import("../../../src/level1/route-table.js").Route<T> } Route ルート情報
  */
 
 describe('BrowserHistoryStorage', () => {

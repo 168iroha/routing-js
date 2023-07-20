@@ -1,5 +1,6 @@
 
-import { RouteTable } from '../../src/route-table.js';
+import { RouteTable } from '../../../src/level1/route-table.js';
+import { jest } from '@jest/globals';
 
 describe('RouteTable', () => {
 	/** 共通して用いるルート(ディレクトリパラメータなし) */
@@ -65,97 +66,105 @@ describe('RouteTable', () => {
 	// 	return routeTree;
 	// };
 
-	// describe('RouteTable.constructor()', () => {
-	// 	it('ディレクトリパラメータなしのルートツリーの構築', () => {
-	// 		const routeTable = new RouteTable(routesWithoutParams);
-	// 		const routeTree = deleteParentInfo(structuredClone(routeTable.routeTree));
+	describe('RouteTable.constructor()', () => {
+		// it('ディレクトリパラメータなしのルートツリーの構築', () => {
+		// 	const routeTable = new RouteTable(routesWithoutParams);
+		// 	const routeTree = deleteParentInfo(structuredClone(routeTable.routeTree));
 
-	// 		expect(routeTree).toEqual({
-	// 			name: '',
-	// 			route: routesWithoutParams[0],
-	// 			children: {
-	// 				'page1': {
-	// 					name: 'page1',
-	// 					route: routesWithoutParams[1],
-	// 					children: {
-	// 						'page1-1': {
-	// 							name: 'page1-1',
-	// 							route: routesWithoutParams[2],
-	// 						},
-	// 						'page1-2': {
-	// 							name: 'page1-2',
-	// 							route: routesWithoutParams[3],
-	// 						}
-	// 					}
-	// 				},
-	// 				'page2': {
-	// 					name: 'page2',
-	// 					children: {
-	// 						'page2-1': {
-	// 							name: 'page2-1',
-	// 							route: routesWithoutParams[4],
-	// 						}
-	// 					}
-	// 				}
-	// 			}
-	// 		});
-	// 	});
+		// 	expect(routeTree).toEqual({
+		// 		name: '',
+		// 		route: routesWithoutParams[0],
+		// 		children: {
+		// 			'page1': {
+		// 				name: 'page1',
+		// 				route: routesWithoutParams[1],
+		// 				children: {
+		// 					'page1-1': {
+		// 						name: 'page1-1',
+		// 						route: routesWithoutParams[2],
+		// 					},
+		// 					'page1-2': {
+		// 						name: 'page1-2',
+		// 						route: routesWithoutParams[3],
+		// 					}
+		// 				}
+		// 			},
+		// 			'page2': {
+		// 				name: 'page2',
+		// 				children: {
+		// 					'page2-1': {
+		// 						name: 'page2-1',
+		// 						route: routesWithoutParams[4],
+		// 					}
+		// 				}
+		// 			}
+		// 		}
+		// 	});
+		// });
 
-	// 	it('ディレクトリパラメータありのルートツリーの構築', () => {
-	// 		const routeTable = new RouteTable(routesWithParams);
-	// 		const routeTree = deleteParentInfo(structuredClone(routeTable.routeTree));
+		// it('ディレクトリパラメータありのルートツリーの構築', () => {
+		// 	const routeTable = new RouteTable(routesWithParams);
+		// 	const routeTree = deleteParentInfo(structuredClone(routeTable.routeTree));
 
-	// 		expect(routeTree).toEqual({
-	// 			name: '',
-	// 			route: routesWithParams[0],
-	// 			children: {
-	// 				'page1': {
-	// 					name: 'page1',
-	// 					route: routesWithParams[1],
-	// 					children: {
-	// 						'page1-1': {
-	// 							name: 'page1-1',
-	// 							route: routesWithParams[2],
-	// 						}
-	// 					}
-	// 				},
-	// 				'page2': {
-	// 					name: 'page2',
-	// 					params: {
-	// 						':pages2-1': {
-	// 							name: ':pages2-1',
-	// 							route: routesWithParams[3],
-	// 						}
-	// 					}
-	// 				}
-	// 			},
-	// 			params: {
-	// 				':pages1': {
-	// 					name: ':pages1',
-	// 					children: {
-	// 						'page1-1': {
-	// 							name: 'page1-1',
-	// 							route: routesWithParams[4],
-	// 						},
-	// 						'page1-2': {
-	// 							name: 'page1-2',
-	// 							route: routesWithParams[5],
-	// 						}
-	// 					}
-	// 				},
-	// 				':pages2': {
-	// 					name: ':pages2',
-	// 					children: {
-	// 						'page2-1': {
-	// 							name: 'page2-1',
-	// 							route: routesWithParams[6],
-	// 						}
-	// 					}
-	// 				},
-	// 			}
-	// 		});
-	// 	});
-	// });
+		// 	expect(routeTree).toEqual({
+		// 		name: '',
+		// 		route: routesWithParams[0],
+		// 		children: {
+		// 			'page1': {
+		// 				name: 'page1',
+		// 				route: routesWithParams[1],
+		// 				children: {
+		// 					'page1-1': {
+		// 						name: 'page1-1',
+		// 						route: routesWithParams[2],
+		// 					}
+		// 				}
+		// 			},
+		// 			'page2': {
+		// 				name: 'page2',
+		// 				params: {
+		// 					':pages2-1': {
+		// 						name: ':pages2-1',
+		// 						route: routesWithParams[3],
+		// 					}
+		// 				}
+		// 			}
+		// 		},
+		// 		params: {
+		// 			':pages1': {
+		// 				name: ':pages1',
+		// 				children: {
+		// 					'page1-1': {
+		// 						name: 'page1-1',
+		// 						route: routesWithParams[4],
+		// 					},
+		// 					'page1-2': {
+		// 						name: 'page1-2',
+		// 						route: routesWithParams[5],
+		// 					}
+		// 				}
+		// 			},
+		// 			':pages2': {
+		// 				name: ':pages2',
+		// 				children: {
+		// 					'page2-1': {
+		// 						name: 'page2-1',
+		// 						route: routesWithParams[6],
+		// 					}
+		// 				}
+		// 			},
+		// 		}
+		// 	});
+		// });
+
+		it('デフォルト引数の確認', async () => {
+			const routeTable = new RouteTable();
+
+			for (const path of routesWithoutParams.map(x => x.path)) {
+				expect(routeTable.get(path)).toBe(undefined);
+			}
+		});
+	});
 
 	describe('RouteTable.get()', () => {
 		it('Pathを指定した定義したルートの取得', () => {
@@ -268,14 +277,16 @@ describe('RouteTable', () => {
 			const routeTable = new RouteTable(routesWithoutParams);
 			expect(routeTable.replace(undefined, undefined)).toBe(undefined);
 		});
-
-		it('不正な引数の組み合わせ', () => {
-			const routeTable = new RouteTable(routesWithoutParams);
-			expect(() => routeTable.replace(undefined, '123456')).toThrow();
-		});
 	});
 
 	describe('RouteTable.add()', () => {
+		it('Pathによる追加', () => {
+			const routeTable = new RouteTable(routesWithoutParams);
+			const route = routeTable.add('/page');
+			expect(route.path).toBe('/page');
+			expect(route.name).toBe(undefined);
+		});
+
 		it('ディレクトリパラメータをもたないルートの上書き', () => {
 			const routeTable = new RouteTable(routesWithoutParams);
 			expect(routeTable.get(routesWithoutParams[2].path).body).toBe(routesWithoutParams[2].body);
@@ -433,6 +444,34 @@ describe('RouteTable', () => {
 			expect(routeTable.get({ name: namedRoutes[4].name }).name).toBe(namedRoutes[4].name);
 			expect(routeTable.remove({ name: namedRoutes[4].name }).name).toBe(namedRoutes[4].name);
 			expect(() => routeTable.remove({ name: namedRoutes[4].name })).toThrow();
+		});
+	});
+
+	describe('RouteTable.forEach()', () => {
+		it('全てのルートの走査の確認', () => {
+			const routes = [
+				{ path: '/page1' },
+				{ path: '/page1/page1-1' },
+				{ path: '/page1/page1-1/:page1-1-1/page1-1-1-1' },
+				{ path: '/page1/page1-1/:page1-1-2/page1-1-2-1' },
+				{ path: '/page1/page1-2', name: 'name1' },
+				{ path: '/page1/page1-3/page1-3-1/page1-3-1-1', name: 'name2' },
+				{ name: 'name3' },
+				{ name: 'name4' },
+			];
+			const routeTable = new RouteTable(routes);
+
+			const mockCallback = jest.fn(route => route.body = 'body');
+			routeTable.forEach(mockCallback);
+			expect(mockCallback.mock.calls).toHaveLength(8);
+			expect(routeTable.get('/page1').body).toBe('body');
+			expect(routeTable.get('/page1/page1-1').body).toBe('body');
+			expect(routeTable.get('/page1/page1-1/page1-1-1/page1-1-1-1').body).toBe('body');
+			expect(routeTable.get('/page1/page1-1/page1-1-2/page1-1-2-1').body).toBe('body');
+			expect(routeTable.get({ name: 'name1' }).body).toBe('body');
+			expect(routeTable.get({ name: 'name2' }).body).toBe('body');
+			expect(routeTable.get({ name: 'name3' }).body).toBe('body');
+			expect(routeTable.get({ name: 'name4' }).body).toBe('body');
 		});
 	});
 });
