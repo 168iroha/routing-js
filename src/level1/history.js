@@ -1,5 +1,5 @@
 import { IRouter } from "./router.js";
-import { IHistoryStorage } from "./history-storage.js"
+import { IHistoryStorage } from "./history-storage.js";
 
 /**
  * @template T
