@@ -1,26 +1,31 @@
-import { IRouter } from "../../src/router.js";
-import { MemoryHistoryStorage } from '../../src/history-storage.js';
-import { RouteHistory } from '../../src/history.js';
-import { jest } from '@jest/globals'
+import { IRouter } from "../../../src/level1/router.js";
+import { MemoryHistoryStorage } from '../../../src/level1/history-storage.js';
+import { RouteHistory } from '../../../src/level1/history.js';
+import { jest } from '@jest/globals';
 
 /**
  * @template T
- * @typedef { import("../../src/route-table.js").Route<T> } Route ルート情報
+ * @typedef { import("../../../src/level1/route-table.js").Route<T> } Route ルート情報
+ */
+
+/**
+ * @template T
+ * @typedef { import("../../../src/level1/route-table.js").InputRoute<T> } InputRoute ルート解決などの際に引数として入力するルート情報
  */
 
 /**
  * @template T, R
- * @typedef { import("../../src/history.js").PushHistoryObserver<T, R> } PushHistoryObserver 履歴に対してpush()した際に呼び出すオブザーバ
+ * @typedef { import("../../../src/level1/history.js").PushHistoryObserver<T, R> } PushHistoryObserver 履歴に対してpush()した際に呼び出すオブザーバ
  */
 
 /**
  * @template T, R
- * @typedef { import("../../src/history.js").ReplaceHistoryObserver<T, R> } ReplaceHistoryObserver 履歴に対してreplace()した際に呼び出すオブザーバ
+ * @typedef { import("../../../src/level1/history.js").ReplaceHistoryObserver<T, R> } ReplaceHistoryObserver 履歴に対してreplace()した際に呼び出すオブザーバ
  */
 
 /**
  * @template T, R
- * @typedef { import("../../src/history.js").GoHistoryObserver<T, R> } GoHistoryObserver 履歴に対してgo()した際に呼び出すオブザーバ
+ * @typedef { import("../../../src/level1/history.js").GoHistoryObserver<T, R> } GoHistoryObserver 履歴に対してgo()した際に呼び出すオブザーバ
  */
 
 /**
@@ -30,9 +35,15 @@ import { jest } from '@jest/globals'
  */
 class StubRouter {
 	/**
+	 * 内部でルートテーブルをもつ場合にルートテーブルの取得
+	 * @return { IRouteTable<T> } ルートテーブル
+	 */
+	get routeTable() { throw new Error('don\'t call.'); }
+
+	/**
 	 * ルーティングの実施
-	 * @param { string | Route<T> } route 遷移先のルート情報
-	 * @param {  Readonly<TraceRoute<T>> } trace 現時点でのルート解決の経路
+	 * @param { InputRoute<T> } route 遷移先のルート情報
+	 * @param { Readonly<TraceRoute<T>> } trace 現時点でのルート解決の経路
 	 * @return { TraceRoute<T> } ルート解決の経路
 	 */
 	routing(route, trace = []) {
@@ -52,6 +63,20 @@ describe('RouteHistory', () => {
 		mockPushObserver.mockClear();
 		mockReplaceObserver.mockClear();
 		mockGoObserver.mockClear();
+	});
+
+	describe('RouteHistory.constructor()', () => {
+		it('デフォルト引数の確認', async () => {
+			const storage = new MemoryHistoryStorage();
+			const router = new RouteHistory(
+				new StubRouter(),
+				storage
+			);
+
+			expect(router.push('/page1')).toBe(undefined);
+			expect(await router.go(-1)).toBe(undefined);
+			expect(router.replace('/page2')).toBe(undefined);
+		});
 	});
 
 	describe('RouteHistory.push()', () => {

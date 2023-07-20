@@ -5,6 +5,11 @@
 
 /**
  * @template T
+ * @typedef { import("./route-table.js").InputRoute<T> } InputRoute ルート解決などの際に引数として入力するルート情報
+ */
+
+/**
+ * @template T
  * @typedef { { id: number; route: (string | Route<T>)? } } RouteHistoryState 履歴操作のためのルートの状態
  */
 
@@ -17,13 +22,13 @@
 class IHistoryStorage {
 	/**
 	 * 履歴にルートを追加する
-	 * @param { string | Route<T> } route 履歴に追加するルート情報
+	 * @param { InputRoute<T> } route 履歴に追加するルート情報
 	 * @returns { RouteHistoryState<T> } 移動先のルート
 	 */
 	push(route) { throw new Error('not implemented.'); }
 	/**
 	 * 履歴にルートを置き換える
-	 * @param { string | Route<T> } route 履歴に置き換えるルート情報
+	 * @param { InputRoute<T> } route 履歴に置き換えるルート情報
 	 * @returns { RouteHistoryState<T> } 移動先のルート
 	 */
 	replace(route) { throw new Error('not implemented.'); }
@@ -52,7 +57,7 @@ class BrowserHistoryStorage {
 	 */
 	#history;
 	/**
-	 * @type { (route: string | Route<T>) => string | URL } ルート情報からHistory APIで利用するURLを生成する関数
+	 * @type { (route: InputRoute<T>) => string | URL } ルート情報からHistory APIで利用するURLを生成する関数
 	 */
 	#makeUrl;
 	/**
@@ -75,7 +80,7 @@ class BrowserHistoryStorage {
 	/**
 	 * History APIによる履歴のストレージの初期化
 	 * @param { History } history 履歴情報
-	 * @param { (route: string | Route<T>) => string } makeUrl ルート情報からHistory APIで利用するURLを生成する関数
+	 * @param { (route: InputRoute<T>) => string } makeUrl ルート情報からHistory APIで利用するURLを生成する関数
 	 */
 	constructor(history, makeUrl = route => `${route.path ?? route.name ?? route}`, timeout = 100) {
 		this.#history = history;
@@ -102,7 +107,7 @@ class BrowserHistoryStorage {
 
 	/**
 	 * 履歴にルートを追加する
-	 * @param { string | Route<T> } route 履歴に追加するルート情報
+	 * @param { InputRoute<T> } route 履歴に追加するルート情報
 	 * @returns { RouteHistoryState<T> } 移動先のルート
 	 */
 	push(route) {
@@ -113,7 +118,7 @@ class BrowserHistoryStorage {
 	}
 	/**
 	 * 履歴にルートを置き換える
-	 * @param { string | Route<T> } route 履歴に置き換えるルート情報
+	 * @param { InputRoute<T> } route 履歴に置き換えるルート情報
 	 * @returns { RouteHistoryState<T> } 移動先のルート
 	 */
 	replace(route) {
@@ -146,7 +151,7 @@ class BrowserHistoryStorage {
 			return Promise.resolve(this.state);
 		}
 
-		let timeoutID  = null;
+		let timeoutID = null;
 		return new Promise((resolve, reject) => {
 			stateElement.resolve = resolve;
 			/* istanbul ignore next */
@@ -195,7 +200,7 @@ class MemoryHistoryStorage {
 
 	/**
 	 * 履歴にルートを追加する
-	 * @param { string | Route<T> } route 履歴に追加するルート情報
+	 * @param { InputRoute<T> } route 履歴に追加するルート情報
 	 * @returns { RouteHistoryState<T> } 移動先のルート
 	 */
 	push(route) {
@@ -206,7 +211,7 @@ class MemoryHistoryStorage {
 	}
 	/**
 	 * 履歴にルートを置き換える
-	 * @param { string | Route<T> } route 履歴に置き換えるルート情報
+	 * @param { InputRoute<T> } route 履歴に置き換えるルート情報
 	 * @returns { RouteHistoryState<T> } 移動先のルート
 	 */
 	replace(route) {
@@ -221,7 +226,7 @@ class MemoryHistoryStorage {
 	go(delta) {
 		// clamp
 		this.#currentPos = Math.max(0, Math.min(this.#currentPos + delta, this.#historyStack.length - 1));
-		return  Promise.resolve(this.state);
+		return Promise.resolve(this.state);
 	}
 
 	/**

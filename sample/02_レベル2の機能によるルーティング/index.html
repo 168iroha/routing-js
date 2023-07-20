@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<script type="module">
+			import { RouteTable, Router, BrowserHistoryStorage } from '../../src/level1/routing.level1.js';
+			import { RouteHistory } from '../../src/level2/routing.level2.js';
+
+			// リンクの生成
+			function link(route, name) {
+				const node = document.createElement(name);
+				node.addEventListener('click', () => {
+					route.push();
+					return false;
+				});
+				return node;
+			}
+
+			const body1 = (view) => {
+				const content = document.createElement('div');
+				content.textContent = `Show '/'`;
+				const enter = () => view.appendChild(content);
+				const leave = () => view.removeChild(content);
+				return { enter, leave };
+			};
+			const body2 = (view) => {
+				const content = document.createElement('div');
+				content.textContent = `Show '/page1'`;
+				const enter = () => view.appendChild(content);
+				const leave = () => view.removeChild(content);
+				return { enter, leave };
+			};
+			const body3 = (view) => {
+				const content = document.createElement('div');
+				content.textContent = `Show '/page2'`;
+				const enter = () => view.appendChild(content);
+				const leave = () => view.removeChild(content);
+				return { enter, leave };
+			};
+
+			const observer = (from, to) => {
+				if (from) {
+					for (const route of from.route) {
+						route.body.view.leave();
+					}
+				}
+				if (to) {
+					for (const route of to.route) {
+						route.body.view.enter();
+					}
+				}
+			};
+
+			const view = document.getElementById('view');
+			const storage = new BrowserHistoryStorage(window.history, route => `#${route.path ?? route}`);
+			const router = new RouteHistory(
+				new Router(new RouteTable()),
+				storage, observer, observer, observer
+			);
+			// ルート情報の定義
+			const route1 = router.add('/');
+			route1.body = { text: 'Routeの表示', view: body1(view) };
+			const route2 = router.add('/page1');
+			route2.body = { text: 'Page1の表示', view: body2(view) };
+			const route3 = router.add('/page2');
+			route3.body = { text: 'Page2の表示', view: body3(view) };
+
+			window.addEventListener('popstate', e => {
+				const state = e.state;
+				if (state) {
+					// 「戻る」や「進む」のブラウザのイベントを通知する
+					router.notify();
+				}
+			});
+			window.addEventListener('DOMContentLoaded', e => {
+				// 初期状態の表示する要素の決定
+				router.replace(window.location.hash.length === 0 ? '/' : window.location.hash.substr(1));
+			});
+
+			// 遷移イベントの設置
+			const routeListNode = document.getElementById('route-list');
+			[route1, route2, route3].forEach(route => {
+				const node = link(route, 'li');
+				node.textContent = route.body.text;
+				routeListNode.appendChild(node);
+			});
+		</script>
+	</head>
+	<body>
+		<ul id="route-list"></ul>
+		<div id="view"></div>
+	</body>
+</html>

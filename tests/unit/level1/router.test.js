@@ -1,16 +1,21 @@
 
-import { IRouteTable } from '../../src/route-table.js';
-import { Router } from '../../src/router.js';
-import { jest } from '@jest/globals'
+import { IRouteTable } from '../../../src/level1/route-table.js';
+import { Router } from '../../../src/level1/router.js';
+import { jest } from '@jest/globals';
 
 /**
  * @template T
- * @typedef { import("../../src/route-table.js").Route<T> } Route ルート情報
+ * @typedef { import("../../../src/level1/route-table.js").Route<T> } Route ルート情報
  */
 
 /**
  * @template T
- * @typedef { import("../../src/router.js").RouterObserver<T> } RouterObserver ルート解決に関するオブザーバ
+ * @typedef { import("../../../src/level1/route-table.js").InputRoute<T> } InputRoute ルート解決などの際に引数として入力するルート情報
+ */
+
+/**
+ * @template T
+ * @typedef { import("../../../src/level1/router.js").RouterObserver<T> } RouterObserver ルート解決に関するオブザーバ
  */
 
 /**
@@ -33,13 +38,27 @@ class StubRouteTable {
 	}
 
 	/**
-	 * ルートの取得(ルート解決)
-	 * @param { string | Route<T> } route 遷移先のルート情報
+	 * ルートの追加
+	 * @param { InputRoute<T> } route 追加するルート
+	 * @return { Route<T> } 追加したルート情報
+	 */
+	add(route) { return route; }
+
+	/**
+	 * ルートの削除
+	 * @param { InputRoute<T> } route 削除対象のルート情報
+	 * @return { Route<T> } 削除したルート情報
+	 */
+	remove(route) { return typeof route === 'string' ? { path: route } : route; }
+
+	/**
+	 * ルートの取得
+	 * @param { InputRoute<T> } route 取得対象のルート情報
 	 * @return { Route<T> & { search: string; } | undefined } 解決したルート情報
 	 */
 	get(route) {
 		// スタブなので単純な線型探索で解決
-		const path = (typeof route === 'string') || (route instanceof String) ? route : route.path;
+		const path = typeof route === 'string' ? route : route.path;
 		const r = this.#routes.find(e => e.path == path);
 		if (r !== undefined) {
 			r.search = 'path';
@@ -57,13 +76,20 @@ describe('Router', () => {
 		{ path: '/page3', name: 'page3', body: '/page3' },
 	];
 	/** @type { jest.Mock<RouterObserver<T>> } ルーティング通知を受け取るオブザーバのモック  */
-	const mockObserver = jest.fn(route => {});
+	const mockObserver = jest.fn((route, trace) => {});
 	/** @type { IRouteTable } ルートテーブル */
 	const routeTable = new StubRouteTable(routes);
 
 	beforeEach(() => {
 		mockObserver.mockClear();
 	});
+
+	describe('Router.constructor()', () => {
+		it('デフォルト引数の確認', async () => {
+			const router = new Router(routeTable);
+			expect(router.routing('/page1').length).toBe(1);
+		});
+	})
 
 	describe('Router.routing()', () => {
 		it('Pathを指定したルーティング', () => {
@@ -90,7 +116,7 @@ describe('Router', () => {
 		});
 
 		it('オブザーバによるリダイレクト', () => {
-			const mockObserver = jest.fn(route => route.path === '/page2' || route.path === '/' ? undefined : { path: '/page2' });
+			const mockObserver = jest.fn((route, trace) => route.path === '/page2' || route.path === '/' ? undefined : { path: '/page2' });
 			const router = new Router(routeTable, mockObserver);
 			expect(router.routing({ path: '/page1' }).length).toBe(1);
 			expect(router.routing({ path: '/page2' }).length).toBe(1);
