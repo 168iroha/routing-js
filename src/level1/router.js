@@ -82,7 +82,9 @@ class Router {
 	 */
 	routing(route, trace = []) {
 		// restが存在する場合はrestをpathとして取得
-		const r = this.#routeTable.get(route?.segment === true && 'rest' in route ? { path: route.rest } : route);
+		const r = this.#routeTable.get(
+			typeof route !== 'string'&& route?.segment === true && route.rest !== undefined
+			? { path: route.rest } : route);
 		const path = typeof route === 'string' ? route : route.path;
 		const name = typeof route === 'string' ? undefined : route.name;
 		if (r === undefined) {

@@ -54,7 +54,7 @@ function l1TraceRouteToL2TraceRoute(base, trace) {
 
 	// 本来はルータのインスタンスのチェック等も厳密に実施すべきだが実施しない
 	for (const r of trace) {
-		if ('route' in r) {
+		if (r?.route !== undefined) {
 			result.route.push(r.route.body.route);
 		}
 		else {

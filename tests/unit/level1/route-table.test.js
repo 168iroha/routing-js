@@ -52,12 +52,12 @@ describe('RouteTable', () => {
 	// 		/** @type { RouteTree<T> } */
 	// 		const tree = stack.pop();
 	// 		delete tree.parent;
-	// 		if ('children' in tree) {
+	// 		if (tree?.children !== undefined) {
 	// 			for (const key in tree.children) {
 	// 				stack.push(tree.children[key]);
 	// 			}
 	// 		}
-	// 		if ('params' in tree) {
+	// 		if (tree?.params !== undefined) {
 	// 			for (const key in tree.params) {
 	// 				stack.push(tree.params[key]);
 	// 			}
@@ -183,7 +183,7 @@ describe('RouteTable', () => {
 
 		it('Nameを指定した定義したルートの取得', () => {
 			const routeTable = new RouteTable(namedRoutes);
-			for (const route of namedRoutes.filter(x => 'name' in x)) {
+			for (const route of namedRoutes.filter(x => x?.name !== undefined)) {
 				expect(routeTable.get({ name: route.name }).body).toBe(route.body);
 			}
 		});
@@ -224,8 +224,8 @@ describe('RouteTable', () => {
 			expect(routeTable.get('/page2').body).toBe('/page1/page1-1');
 			expect(() => routeTable.get('/page2').body = '/page2').not.toThrow();
 			expect(routeTable.get('/page2').body).toBe('/page2');
-			expect('body' in routeTable.get('/page2')).toBe(true);
-			expect('test' in routeTable.get('/page2')).toBe(false);
+			expect(routeTable.get('/page2')?.body !== undefined).toBe(true);
+			expect(routeTable.get('/page2')?.test !== undefined).toBe(false);
 		});
 
 		it('取得したルート情報の取得と変更(nameの変更)', () => {

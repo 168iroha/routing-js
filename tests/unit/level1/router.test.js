@@ -130,7 +130,7 @@ describe('Router', () => {
 			const router = new Router(routeTable, mockObserver);
 			const traceRoute = router.routing(routes[3]);
 			expect(traceRoute.length).toBe(1);
-			expect('route' in traceRoute[0]).toBe(true);
+			expect(traceRoute[0]?.route !== undefined).toBe(true);
 			expect(traceRoute[0].router).toBe(router);
 			// pathとname、bodyはルートテーブルから直接取得したものと同一であることを保証
 			const route = routeTable.get(routes[3]);
@@ -145,7 +145,7 @@ describe('Router', () => {
 			const router = new Router(routeTable, mockObserver);
 			const traceRoute = router.routing(path);
 			expect(traceRoute.length).toBe(1);
-			expect('route' in traceRoute[0]).toBe(false);
+			expect(traceRoute[0]?.route !== undefined).toBe(false);
 			expect(traceRoute[0].router === router).toBe(true);
 			expect(mockObserver.mock.calls).toHaveLength(0);
 		});
