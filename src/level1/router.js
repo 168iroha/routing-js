@@ -1,4 +1,5 @@
 import { IRouteTable } from "./route-table.js";
+import { TraceRoute } from "./trace-route.js";
 
 /**
  * @template T
@@ -12,17 +13,33 @@ import { IRouteTable } from "./route-table.js";
 
 /**
  * @template T
- * @typedef { (route: Route<T>, trace: Readonly<TraceRoute<T>>) => TraceRoute<T> | Route<T> | undefined | null } RouterObserver ルート解決に関するオブザーバ
+ * @typedef { import("./route-table.js").ResolveRoute<T> } ResolveRoute IRouteTable.get()などより取得するルート情報
  */
 
 /**
  * @template T
- * @typedef { { router: IRouter<T>; route?: Route<T>; }[] } TraceRoute ルート解決の経路
+ * @typedef { (route: Route<T> | undefined, trace: TraceRoute<T>) => TraceRoute<T> | string | undefined | null } RouterObserver ルート解決に関するオブザーバ
  */
+
+/**
+ * @template T, RT, TRE
+ * @typedef { (router: IRouter<T, RT, TRE>, route: ResolveRoute<T> | undefined) => TRE | undefined } CreateTraceRouteElement TraceRouteのroutesの要素の生成する関数型
+ */
+
+/**
+ * TraceRouteのroutesの要素の生成
+ * @template T, RT, TRE
+ * @param { IRouter<T, RT, TRE> } router ルーティングを行ったルータ
+ * @param { ResolveRoute<T> | undefined } route 解決をしたルート情報
+ * @returns { TRE | undefined }
+ */
+function createTraceRouteElement(router, route) {
+	return { router, route };
+}
 
 /**
  * ルータのインターフェース
- * @template T
+ * @template T, RT, TRE
  * @interface
  */
 /* istanbul ignore next */
@@ -36,16 +53,16 @@ class IRouter {
 	/**
 	 * ルーティングの実施
 	 * @param { InputRoute<T> } route 遷移先のルート情報
-	 * @param { Readonly<TraceRoute<T>> } trace 現時点でのルート解決の経路
-	 * @return { TraceRoute<T> } ルート解決の経路
+	 * @param { TraceRoute<RT, TRE> } trace 現時点でのルート解決の経路
+	 * @return { TraceRoute<RT, TRE> } ルート解決の経路
 	 */
-	routing(route, trace = []) { throw new Error('not implemented.'); }
+	routing(route, trace = new TraceRoute()) { throw new Error('not implemented.'); }
 }
 
 /**
  * ルータクラス
- * @template T
- * @implements { IRouter<T> }
+ * @template T, RT, TRE
+ * @implements { IRouter<T, RT, TRE> }
  */
 class Router {
 	/**
@@ -56,14 +73,20 @@ class Router {
 	 * @type { RouterObserver<T> } ルーティングの通知を受け取るオブザーバ
 	 */
 	#observer;
+	/**
+	 * @type { CreateTraceRouteElement<T, RT, TRE> } TraceRouteのroutesの要素の生成する関数型
+	 */
+	#createTRE;
 
 	/**
 	 * ルータの初期化
 	 * @param { IRouteTable<T> } routeTable 初期状態のルート情報
+	 * @param { CreateTraceRouteElement<T, RT, TRE> } createTRE TraceRouteのroutesの要素の生成する関数型
 	 * @param { RouterObserver<T> } observer ルーティングの通知を受け取るオブザーバ
 	 */
-	constructor(routeTable, observer = router => {}) {
+	constructor(routeTable, createTRE, observer = router => {}) {
 		this.#routeTable = routeTable;
+		this.#createTRE = createTRE;
 		this.#observer = observer;
 	}
 
@@ -77,38 +100,44 @@ class Router {
 	/**
 	 * ルーティングの実施
 	 * @param { InputRoute<T> } route 遷移先のルート情報
-	 * @param {  Readonly<TraceRoute<T>> } trace 現時点でのルート解決の経路
-	 * @return { TraceRoute<T> } ルート解決の経路
+	 * @param {  TraceRoute<RT, TRE> } trace 現時点でのルート解決の経路
+	 * @return { TraceRoute<RT, TRE> } ルート解決の経路
 	 */
-	routing(route, trace = []) {
+	routing(route, trace = new TraceRoute()) {
 		// restが存在する場合はrestをpathとして取得
-		const r = this.#routeTable.get(route?.segment === true && 'rest' in route ? { path: route.rest } : route);
-		const path = typeof route === 'string' ? route : route.path;
-		const name = typeof route === 'string' ? undefined : route.name;
-		if (r === undefined) {
-			return [ ...trace, { router: this } ];
+		const r = this.#routeTable.get(
+			typeof route !== 'string'&& route.rest !== undefined
+			? { path: route.rest } : route);
+		const path = typeof route === 'string' ? route : route?.path;
+		const name = typeof route === 'string' ? undefined : route?.name;
+		const resolvePath = path ?? trace?.path ?? r?.path;
+
+		// 経路の要素を生成して生成に成功すれば経路に追加する
+		const traceRouteElement = this.#createTRE(this, r);
+		const traceRoute = new TraceRoute(
+			trace.base,
+			resolvePath,
+			traceRouteElement ? [ ...trace.routes, traceRouteElement ] : [ ...trace.routes ]
+		);
+
+		const r2 = r === undefined ? undefined : { ...r };
+		if (r?.search === 'path') {
+			r2.path = path;
 		}
-		const ret = this.#observer(new Proxy(r, {
-			// 解決済みのpathを返すようにするかつ変更不可にする
-			get(target, prop, receiver) {
-				if (prop === 'path' && r.search === 'path') { return path; }
-				return Reflect.get(...arguments);
-			},
-			set(obj, prop, value) {
-				if (prop === r.search) {
-					throw new Error(`'${prop}' changes are prohibited in resolved routes.`);
-				}
-				return Reflect.set(...arguments);
-			}
-		}), []);
-		if (Array.isArray(ret)) {
-			return [ ...trace, { router: this, route: r }, ...ret ];
-		}
+		const ret = this.#observer(r2, traceRoute);
+		
+		// デフォルトの動作
 		if (ret === undefined || ret === null) {
-			return [ ...trace, { router: this, route: r } ];
+			return traceRoute;
 		}
-		return this.routing(ret, trace);
+		// ルーティングの結果のパスの明示的指定
+		if (typeof ret === 'string') {
+			traceRoute.path = ret;
+			return traceRoute;
+		}
+		// 経路が直接与えられた場合はそれを返す
+		return ret;
 	}
 }
 
-export { Router, IRouter };
+export { createTraceRouteElement, Router, IRouter };

@@ -1,6 +1,61 @@
 
-import { RouteTable } from '../../../src/level1/route-table.js';
+import { mergeParams, createPathArray, RouteTable } from '../../../src/level1/route-table.js';
 import { jest } from '@jest/globals';
+
+describe('mergeParams', () => {
+	it('空に対して文字列パラメータのマージ', () => {
+		const dest = {};
+		const src = { param: 'test' };
+		mergeParams(dest, src);
+		expect(dest).toEqual({ param: 'test' });
+	});
+
+	it('空に対して配列パラメータのマージ', () => {
+		const dest = {};
+		const src = { param: ['test1', 'test2'] };
+		mergeParams(dest, src);
+		expect(dest).toEqual({ param: ['test1', 'test2'] });
+	});
+
+	it('文字列に対して文字列パラメータのマージ', () => {
+		const dest = { param: 'test1' };
+		const src = { param: 'test2' };
+		mergeParams(dest, src);
+		expect(dest).toEqual({ param: ['test1', 'test2'] });
+	});
+
+	it('文字列に対して配列パラメータのマージ', () => {
+		const dest = { param: 'test1' };
+		const src = { param: ['test2', 'test3'] };
+		mergeParams(dest, src);
+		expect(dest).toEqual({ param: ['test1', 'test2', 'test3'] });
+	});
+
+	it('配列に対して文字列パラメータのマージ', () => {
+		const dest = { param: ['test1', 'test2'] };
+		const src = { param: 'test3' };
+		mergeParams(dest, src);
+		expect(dest).toEqual({ param: ['test1', 'test2', 'test3'] });
+	});
+
+	it('配列に対して配列パラメータのマージ', () => {
+		const dest = { param: ['test1', 'test2'] };
+		const src = { param: ['test3', 'test4'] };
+		mergeParams(dest, src);
+		expect(dest).toEqual({ param: ['test1', 'test2', 'test3', 'test4'] });
+	});
+});
+
+describe('createPathArray', () => {
+	it('基本動作', async () => {
+		const dest = { param: ['test1', 'test2'] };
+		const src = { param: ['test3', 'test4'] };
+		mergeParams(dest, src);
+		expect(createPathArray('/page1/ page2/ page3 /page4 ///page5/')).toEqual(
+			['page1', 'page2', 'page3', 'page4', 'page5']
+		);
+	});
+});
 
 describe('RouteTable', () => {
 	/** 共通して用いるルート(ディレクトリパラメータなし) */
@@ -52,12 +107,12 @@ describe('RouteTable', () => {
 	// 		/** @type { RouteTree<T> } */
 	// 		const tree = stack.pop();
 	// 		delete tree.parent;
-	// 		if ('children' in tree) {
+	// 		if (tree?.children !== undefined) {
 	// 			for (const key in tree.children) {
 	// 				stack.push(tree.children[key]);
 	// 			}
 	// 		}
-	// 		if ('params' in tree) {
+	// 		if (tree?.params !== undefined) {
 	// 			for (const key in tree.params) {
 	// 				stack.push(tree.params[key]);
 	// 			}
@@ -183,7 +238,7 @@ describe('RouteTable', () => {
 
 		it('Nameを指定した定義したルートの取得', () => {
 			const routeTable = new RouteTable(namedRoutes);
-			for (const route of namedRoutes.filter(x => 'name' in x)) {
+			for (const route of namedRoutes.filter(x => x?.name !== undefined)) {
 				expect(routeTable.get({ name: route.name }).body).toBe(route.body);
 			}
 		});
@@ -197,11 +252,11 @@ describe('RouteTable', () => {
 			const routeTable = new RouteTable(routesWithParams);
 			expect(routeTable.get('/page1/page1-1').body).toBe('/page1/page1-1');
 			expect(routeTable.get('/page1/page1-2').body).toBe('/:pages1/page1-2');
-			expect(routeTable.get('/page1/page1-2').params['pages1']).toBe('page1');
+			expect({ ...routeTable.get('/page1/page1-2').params }).toEqual({ pages1: 'page1' });
 			expect(routeTable.get('/page2/page2-1').body).toBe('/page2/:pages2-1');
-			expect(routeTable.get('/page2/page2-1').params['pages2-1']).toBe('page2-1');
+			expect({ ...routeTable.get('/page2/page2-1').params }).toEqual({ 'pages2-1': 'page2-1' });
 			expect(routeTable.get('/page3/page2-1').body).toBe('/:pages2/page2-1');
-			expect(routeTable.get('/page3/page2-1').params['pages2']).toBe('page3');
+			expect({ ...routeTable.get('/page3/page2-1').params }).toEqual({ pages2: 'page3' });
 			expect(routeTable.get('/page3/page2-2')).toBe(undefined);
 		});
 
@@ -210,34 +265,6 @@ describe('RouteTable', () => {
 			expect(routeTable.get('/page1/page1-1/page1-1-1').params['pages']).toEqual(
 				['page1', 'page1-1', 'page1-1-1']
 			);
-		});
-
-		it('取得したルート情報の取得と変更', () => {
-			const routeTable = new RouteTable(routesWithoutParams);
-			expect(routeTable.get('/page2')).toBe(undefined);
-			const route = routeTable.get('/page1/page1-1');
-			expect(route.path).toBe('/page1/page1-1');
-			// ルート情報の書き換え
-			expect(() => route.path = 123).toThrow();
-			expect(routeTable.get('/page2')).toBe(undefined);
-			expect(() => route.path = '/page2').not.toThrow();
-			expect(routeTable.get('/page2').body).toBe('/page1/page1-1');
-			expect(() => routeTable.get('/page2').body = '/page2').not.toThrow();
-			expect(routeTable.get('/page2').body).toBe('/page2');
-			expect('body' in routeTable.get('/page2')).toBe(true);
-			expect('test' in routeTable.get('/page2')).toBe(false);
-		});
-
-		it('取得したルート情報の取得と変更(nameの変更)', () => {
-			const routeTable = new RouteTable(namedRoutes);
-			expect(routeTable.get({ name: 'page6' })).toBe(undefined);
-			const route = routeTable.get({ name: 'page4' });
-			expect(route.body).toBe('page4');
-			// ルート情報の書き換え
-			expect(() => route.name = 123).toThrow();
-			expect(routeTable.get({ name: 'page6' })).toBe(undefined);
-			expect(() => route.name = 'page6').not.toThrow();
-			expect(routeTable.get({ name: 'page6' }).body).toBe('page4');
 		});
 
 		it('segmentを含むマッチング', () => {
@@ -251,15 +278,15 @@ describe('RouteTable', () => {
 			expect(routeTable.get('/page1/').body).toBe('/page1/**');
 			expect(routeTable.get('/page1/').rest).toBe('');
 			expect(routeTable.get('/page2/pages-1').body).toBe('/:pages/pages-1');
-			expect(routeTable.get('/page2/pages-1').params['pages']).toBe('page2');
+			expect({ ...routeTable.get('/page2/pages-1').params }).toEqual({ pages: 'page2' });
 			expect(routeTable.get('/page2/pages-2').body).toBe('/:pages/**');
-			expect(routeTable.get('/page2/pages-2').params['pages']).toBe('page2');
+			expect({ ...routeTable.get('/page2/pages-2').params }).toEqual({ pages: 'page2' });
 			expect(routeTable.get('/page2/pages-2').rest).toBe('pages-2');
 			expect(routeTable.get('/page2').body).toBe('/:pages/**');
-			expect(routeTable.get('/page2').params['pages']).toBe('page2');
+			expect({ ...routeTable.get('/page2').params }).toEqual({ pages: 'page2' });
 			expect(routeTable.get('/page2').rest).toBe('');
 			expect(routeTable.get('/page2/').body).toBe('/:pages/**');
-			expect(routeTable.get('/page2/').params['pages']).toBe('page2');
+			expect({ ...routeTable.get('/page2/').params }).toEqual({ pages: 'page2' });
 			expect(routeTable.get('/page2/').rest).toBe('');
 		});
 	});
