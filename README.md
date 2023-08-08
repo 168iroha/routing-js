@@ -3,3 +3,4 @@
 
 1. [JavaScriptでルーティングをやってみる【ルート解決編】 - いろはの物置き場](https://168iroha.net/blog/topic/?id=202306140115)
 2. [JavaScriptでルーティングをやってみる【履歴操作編】 - いろはの物置き場](https://168iroha.net/blog/topic/?id=202306260059)
+3. [JavaScriptでルーティングをやってみる【ルート情報編】 - いろはの物置き場](https://168iroha.net/blog/topic/?id=202307210051)

@@ -1,18 +1,10 @@
+import { mergeParams, createPathArray } from "../level1/route-table.js";
 import { IRouter as L1Router } from "../level1/router.js";
+import { TraceRoute } from "../level1/trace-route.js";
 import { RouteHistory as L1RouteHistory } from "../level1/history.js";
 import { IHistoryStorage as L1HistoryStorage } from "../level1/history-storage.js";
 import { RoutePath } from "./route-path.js";
-import { Route } from "./route.js";
-
-/**
- * @template T
- * @typedef { import("../level1/router.js").TraceRoute<T> } L1TraceRoute レベル1のルート解決の経路
- */
-
-/**
- * @template T, R1, R2
- * @typedef { { base: ARouter<T, R1, R2>; route: Route<T, R1, R2>[]; } } TraceRoute ルート解決の経路
- */
+import { Route, ResolveRoute } from "./route.js";
 
 /**
  * @template T
@@ -25,11 +17,16 @@ import { Route } from "./route.js";
 
 /**
  * @template T
+ * @typedef { import("../level1/route-table.js").ResolveRoute<T> } L1ResolveRoute IRouteTable.get()などより取得するルート情報
+ */
+
+/**
+ * @template T
  * @typedef { import("../level1/router.js").InputRoute<T> } L1InputRoute ルート解決などの際に引数として入力するルート情報
  */
 
 /**
- * @typedef { { path: string; name?: string; } | string } InputRoute ルート解決などの際に引数として入力するルート情報(レベル1とは異なりpathを必須にする)
+ * @typedef { { name: string; } | { name: string; } | string } InputRoute ルート解決などの際に引数として入力するルート情報(レベル1とは異なりpathを必須にする)
  */
 
 /**
@@ -43,26 +40,14 @@ import { Route } from "./route.js";
  */
 
 /**
- * レベル1のルート解決の経路からレベル2のルート解決の経路へ変換
- * @template T, R1, R2
- * @param { ARouter<T, R1, R2> } base ルート解決の基点となるルータ
- * @param { Readonly<L1TraceRoute<L1RouteBody<T, R1, R2>>> } trace レベル1の経路
- * @returns { TraceRoute<T, R1, R2> }
+ * TraceRouteのroutesの要素の生成
+ * @template T, RT, TRE
+ * @param { L1Router<T, RT, TRE> } router ルーティングを行ったルータ
+ * @param { L1ResolveRoute<T> | undefined } route 解決をしたルート情報
+ * @returns { TRE | undefined }
  */
-function l1TraceRouteToL2TraceRoute(base, trace) {
-	const result = { base, route: [] };
-
-	// 本来はルータのインスタンスのチェック等も厳密に実施すべきだが実施しない
-	for (const r of trace) {
-		if (r?.route !== undefined) {
-			result.route.push(r.route.body.route);
-		}
-		else {
-			break;
-		}
-	}
-
-	return result;
+function createTraceRouteElement(router, route) {
+	return route ? new ResolveRoute(route) : undefined;
 }
 
 /**
@@ -76,7 +61,7 @@ class ARouter {
 
 	/**
 	 * ルータの初期化
-	 * @param { L1Router<L1RouteBody<T, R1, R2>> } router 内部で用いるレベル1ルータ
+	 * @param { L1Router<L1RouteBody<T, R1, R2>, ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>> } router 内部で用いるレベル1ルータ
 	 */
 	constructor(router) {
 		// レベル2のルート情報を登録
@@ -98,7 +83,7 @@ class ARouter {
 
 	/**
 	 * 内部で保持しているレベル1ルータの取得
-	 * @returns { L1Router<L1RouteBody<T, R1, R2>> }
+	 * @returns { L1Router<L1RouteBody<T, R1, R2>, ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>> }
 	 */
 	/* istanbul ignore next */
 	get l1router() { throw new Error('not implemented.'); }
@@ -109,6 +94,13 @@ class ARouter {
 	 */
 	/* istanbul ignore next */
 	get path() { throw new Error('not implemented.'); }
+
+	/**
+	 * 現在のルート解決に用いた経路の取得
+	 * @return { TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>> } ルート解決の経路
+	 */
+	/* istanbul ignore next */
+	get current() { return this.base.current; }
 
 	/**
 	 * ルートを追加する
@@ -143,7 +135,7 @@ class ARouter {
 	 */
 	get(route) {
 		const r = this.l1router.routeTable.get(route);
-		return r ? r.body.route : undefined;
+		return r ? new ResolveRoute(r) : undefined;
 	}
 
 	/**
@@ -167,13 +159,23 @@ class ARouter {
 	}
 
 	/**
+	 * 履歴の操作なしで移動を行う
+	 * @param { string | TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>> } route 移動先のルート情報
+	 * @param { L1RouteParams } params ルートにディスパッチするパラメータ
+	 * @returns { R4 }
+	 */
+	transition(route, params = {}) {
+		return this.base.transition(route instanceof TraceRoute ? route : this.path.dispatch(params).concat(route).toString());
+	}
+
+	/**
 	 * ルーティングの実施
 	 * @param { string } route 遷移先のルート情報(ディレクトリパラメータは含まない)
 	 * @param { L1RouteParams } params ルートにディスパッチするパラメータ
-	 * @return { TraceRoute<T, R1, R2> } ルート解決の経路
+	 * @return { TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>> } ルート解決の経路
 	 */
 	routing(route, params = {}) {
-		return l1TraceRouteToL2TraceRoute(this.base, this.base.l1router.routing(this.path.dispatch(params).concat(route).toString()));
+		return this.base.routing(this.path.dispatch(params).concat(route).toString());
 	}
 }
 
@@ -183,14 +185,14 @@ class ARouter {
  * @extends { ARouter<T, R1, R2> }
  */
 class Router extends ARouter {
-	/** @type { L1Router<L1RouteBody<T, R1, R2>> } レベル1のルータ(L1RouterObserverによるルート解決を実施する必要がある) */
+	/** @type { L1Router<L1RouteBody<T, R1, R2>, ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>> } レベル1のルータ(L1RouterObserverによるルート解決を実施する必要がある) */
 	#router;
 	/** @type { Route<T, R1, R2> } ルート解決のベースとなるルート */
 	#prevRoute;
 
 	/**
 	 * ルータの初期化
-	 * @param { L1Router<L1RouteBody<T, R1, R2>> } router 内部で用いるレベル1ルータ
+	 * @param { L1Router<L1RouteBody<T, R1, R2>, ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>> } router 内部で用いるレベル1ルータ
 	 * @param { Route<T, R1, R2> } prevRoute ルート解決のベースとなるルート
 	 */
 	constructor(router, prevRoute) {
@@ -216,7 +218,7 @@ class Router extends ARouter {
 
 	/**
 	 * 内部で保持しているレベル1ルータの取得
-	 * @returns { L1Router<L1RouteBody<T, R1, R2>> }
+	 * @returns { L1Router<L1RouteBody<T, R1, R2>, ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>> }
 	 */
 	get l1router() {
 		return this.#router;
@@ -238,62 +240,74 @@ class Router extends ARouter {
 
 
 /**
- * @template T, R
- * @typedef { import("../level1/history.js").PushHistoryObserver<T, R> } L1PushHistoryObserver 履歴に対してpush()した際に呼び出すオブザーバ
+ * @template T, RT, TRE, R
+ * @typedef { import("../level1/history.js").PushHistoryObserver<T, RT, TRE, R> } L1PushHistoryObserver 履歴に対してpush()した際に呼び出すオブザーバ
  */
 
 /**
- * @template T, R
- * @typedef { import("../level1/history.js").ReplaceHistoryObserver<T, R> } L1ReplaceHistoryObserver 履歴に対してreplace()した際に呼び出すオブザーバ
+ * @template T, RT, TRE, R
+ * @typedef { import("../level1/history.js").ReplaceHistoryObserver<T, RT, TRE, R> } L1ReplaceHistoryObserver 履歴に対してreplace()した際に呼び出すオブザーバ
  */
 
 /**
- * @template T, R
- * @typedef { import("../level1/history.js").GoHistoryObserver<T, R> } L1GoHistoryObserver 履歴に対してgo()した際に呼び出すオブザーバ
+ * @template T, RT, TRE, R
+ * @typedef { import("../level1/history.js").GoHistoryObserver<T, RT, TRE, R> } L1GoHistoryObserver 履歴に対してgo()した際に呼び出すオブザーバ
  */
+
+/**
+ * @template T, RT, TRE, R
+ * @typedef { import("../level1/history.js").TransitionHistoryObserver<T, RT, TRE, R> } L1TransitionHistoryObserver 履歴に対してtransition()した際に呼び出すオブザーバ
+ */
+
 /**
  * @template T, R1, R2
- * @typedef { (from: Readonly<TraceRoute<T, R1, R2>>?, to: Readonly<TraceRoute<T, R1, R2>>) => R1 } PushHistoryObserver 履歴に対してpush()した際に呼び出すオブザーバ
+ * @typedef { L1PushHistoryObserver<L1RouteBody<T, R1, R2>, ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>, R1> } PushHistoryObserver 履歴に対してpush()した際に呼び出すオブザーバ
  */
 
 /**
  * @template T, R1, R2
- * @typedef { (from: Readonly<TraceRoute<T, R1, R2>>?, to: Readonly<TraceRoute<T, R1, R2>>) => R2 } ReplaceHistoryObserver 履歴に対してreplace()した際に呼び出すオブザーバ
+ * @typedef { L1ReplaceHistoryObserver<L1RouteBody<T, R1, R2>, ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>, R2> } ReplaceHistoryObserver 履歴に対してreplace()した際に呼び出すオブザーバ
  */
 
 /**
  * @template T, R1, R2, R3
- * @typedef { (from: Readonly<TraceRoute<T, R1, R2>>?, to: Readonly<TraceRoute<T, R1, R2>>?, delta: number, realDelta: number) => R3 } GoHistoryObserver 履歴に対してgo()した際に呼び出すオブザーバ
+ * @typedef { L1GoHistoryObserver<L1RouteBody<T, R1, R2>, ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>, R3> } GoHistoryObserver 履歴に対してgo()した際に呼び出すオブザーバ
+ */
+
+/**
+ * @template T, R1, R2, R4
+ * @typedef { L1TransitionHistoryObserver<L1RouteBody<T, R1, R2>, ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>, R4> } TransitionHistoryObserver 履歴に対してtransition()した際に呼び出すオブザーバ
  */
 
 /**
  * 履歴操作クラス
- * @template T, R1, R2, R3
+ * @template T, R1, R2, R3, R4
  * @extends { ARouter<T, R1, R2> }
  */
 class RouteHistory extends ARouter {
-	/** @type { L1RouteHistory<L1RouteBody<T, R1, R2>, R1, R2, R3> } レベル1のルータ(L1RouterObserverによるルート解決を実施する必要がある) */
+	/** @type { L1RouteHistory<L1RouteBody<T, R1, R2>, ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>, R1, R2, R3, R4> } レベル1のルータ(L1RouterObserverによるルート解決を実施する必要がある) */
 	#router;
+	/** @type { number } リダイレクトの回数の上限 */
+	redirectionLimit = 5;
 
 	/**
 	 * ルータの初期化
-	 * @param { L1Router<L1RouteBody<T, R1, R2>> } router 内部で用いるレベル1ルータ
+	 * @param { L1Router<L1RouteBody<T, R1, R2>, ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>> } router 内部で用いるレベル1ルータ
 	 * @param { HistoryStorage<T, R1, R2> } storage 履歴を管理するストレージ
 	 * @param { PushHistoryObserver<T, R1, R2> } pushHistoryObserver 履歴に対してpush()した際に呼び出すオブザーバ
 	 * @param { ReplaceHistoryObserver<T, R1, R2> } replaceHistoryObserver 履歴に対してreplace()した際に呼び出すオブザーバ
 	 * @param { GoHistoryObserver<T, R1, R2, R3> } goHistoryObserver 履歴に対してgo()した際に呼び出すオブザーバ
+	 * @param { TransitionHistoryObserver<T, R1, R2, R4> } transitionHistoryObserver 履歴に対してtransition()した際に呼び出すオブザーバ
 	 */
-	constructor(router, storage, pushHistoryObserver = (from, to) => {}, replaceHistoryObserver = (from, to) => {}, goHistoryObserver = (from, to) => {}) {
+	constructor(router, storage, pushHistoryObserver = (from, to) => {}, replaceHistoryObserver = (from, to) => {}, goHistoryObserver = (from, to) => {}, transitionHistoryObserver = (from, to) => {}) {
 		super(router);
 		this.#router = new L1RouteHistory(
 			router,
 			storage,
-			/* istanbul ignore next */
-			(from, to) => pushHistoryObserver(from ? l1TraceRouteToL2TraceRoute(this, from) : null, l1TraceRouteToL2TraceRoute(this, to)),
-			/* istanbul ignore next */
-			(from, to) => replaceHistoryObserver(from ? l1TraceRouteToL2TraceRoute(this, from) : null, l1TraceRouteToL2TraceRoute(this, to)),
-			/* istanbul ignore next */
-			(from, to, delta, realDelta) => goHistoryObserver(from ? l1TraceRouteToL2TraceRoute(this, from) : null, to ? l1TraceRouteToL2TraceRoute(this, to) : null, delta, realDelta)
+			pushHistoryObserver,
+			replaceHistoryObserver,
+			goHistoryObserver,
+			transitionHistoryObserver
 		);
 	}
 
@@ -307,7 +321,7 @@ class RouteHistory extends ARouter {
 
 	/**
 	 * 内部で保持しているレベル1ルータの取得
-	 * @returns { L1Router<L1RouteBody<T, R1, R2>> }
+	 * @returns { L1Router<L1RouteBody<T, R1, R2>, ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>> }
 	 */
 	get l1router() {
 		return this.#router;
@@ -322,6 +336,12 @@ class RouteHistory extends ARouter {
 	}
 
 	/**
+	 * 現在のルート解決に用いた経路の取得
+	 */
+	/* istanbul ignore next */
+	get current() { return this.#router.current; }
+
+	/**
 	 * 履歴にルートを追加する
 	 * @param { string } route 履歴に追加するルート情報(ディレクトリパラメータは含まない)
 	 * @param { L1RouteParams } params ルートにディスパッチするパラメータ(空固定)
@@ -329,7 +349,7 @@ class RouteHistory extends ARouter {
 	 */
 	/* istanbul ignore next */
 	push(route, params = {}) {
-		return this.#router.push(route);
+		return this.#router.push(this.routing(route, params));
 	}
 
 	/**
@@ -340,7 +360,7 @@ class RouteHistory extends ARouter {
 	 */
 	/* istanbul ignore next */
 	replace(route, params = {}) {
-		return this.#router.replace(route);
+		return this.#router.replace(this.routing(route, params));
 	}
 
 	/**
@@ -372,6 +392,17 @@ class RouteHistory extends ARouter {
 	}
 
 	/**
+	 * 履歴の操作なしで移動を行う
+	 * @param { string | TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>> } route 移動先のルート情報
+	 * @param { L1RouteParams } params ルートにディスパッチするパラメータ
+	 * @returns { R4 }
+	 */
+	/* istanbul ignore next */
+	transition(route, params = {}) {
+		return this.#router.transition(route instanceof TraceRoute ? route : this.routing(route, params));
+	}
+
+	/**
 	 * 外部からのストレージの変更を通知(pushやreplaceの検知は実施しない)
 	 * @returns { Promise<R3>? }
 	 */
@@ -379,6 +410,60 @@ class RouteHistory extends ARouter {
 	notify() {
 		return this.#router.notify();
 	}
+
+	/**
+	 * ルーティングの実施
+	 * @param { string } route 遷移先のルート情報(ディレクトリパラメータは含まない)
+	 * @param { L1RouteParams } params ルートにディスパッチするパラメータ
+	 * @return { TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>> } ルート解決の経路
+	 */
+	routing(route, params = {}) {
+		/** @type { L1InputRoute<L1RouteBody<T, R1, R2>> } 次のルート解決に用いるルート情報 */
+		let nextRoute = { path: route };
+		/** @type { string[] } 最後にフォワードにより与えられたパス */
+		const forwardPath = [];
+
+		let cnt = 0;
+		while (cnt++ < this.redirectionLimit) {
+			// ルート解決の実施
+			const traceRoute = this.#router.routing(nextRoute, new TraceRoute(this));
+			const lastRoute = traceRoute.routes[traceRoute.routes.length - 1];
+
+			const to = lastRoute.l1route.body.navigate;
+			if (to === undefined) {
+				// リダイレクトやフォワードがなければルート解決完了
+				return traceRoute;
+			}
+
+			// ルート解決の再実施のためのルート情報の構築
+			nextRoute = {};
+			const params = (() => {
+				/** @type { L1RouteParams } */
+				const temp = {};
+				mergeParams(temp, ...(traceRoute.routes.map(val => val.params ?? {})));
+				return to?.map !== undefined ? to.map(temp) : temp;
+			})();
+			const rest = lastRoute.rest ?? '';
+			const lastRoutePath = createPathArray(rest.length === 0 ? traceRoute.path : traceRoute.path.slice(0, -rest.length));
+			// フォワードにより形成されたpath内でのリダイレクトは代わりにフォワードを実施
+			if (to.type === 'redirect' && forwardPath.length <= lastRoutePath.length) {
+				// リダイレクト用のルート情報の構築
+				nextRoute.path = to.route.path.dispatch(params).concat(rest).toString();
+				forwardPath.splice(0);
+			}
+			else {
+				// フォワードのルート情報の構築
+				const temp = to.route.path.dispatch(params);
+				nextRoute.rest = temp.concat(rest).toString();
+				nextRoute.path = traceRoute.path;
+				// フォワードするパスの記憶
+				const nextForwardPath = createPathArray(temp.toString());
+				forwardPath.splice(0, lastRoutePath.length, ...nextForwardPath);
+			}
+		}
+
+		throw new Error('There are too many redirects and forwards.');
+	}
 }
 
-export { ARouter, Router, RouteHistory };
+export { createTraceRouteElement, ARouter, Router, RouteHistory };

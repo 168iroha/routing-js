@@ -2,7 +2,7 @@
 <html>
 	<head>
 		<script type="module">
-			import { RouteTable, Router, BrowserHistoryStorage, RouteHistory } from '../../src/level1/routing.level1.js';
+			import { createTraceRouteElement, RouteTable, Router, BrowserHistoryStorage, RouteHistory } from '../../src/level1/routing.level1.js';
 
 			const body1 = (view) => {
 				const content = document.createElement('div');
@@ -28,12 +28,12 @@
 
 			const observer = (from, to) => {
 				if (from) {
-					for (const { route, router } of from) {
+					for (const { route, router } of from.routes) {
 						route.body.leave();
 					}
 				}
 				if (to) {
-					for (const { route, router } of to) {
+					for (const { route, router } of to.routes) {
 						route.body.enter();
 					}
 				}
@@ -48,7 +48,7 @@
 			const routeTable = new RouteTable(routes);
 			const storage = new BrowserHistoryStorage(window.history, route => `#${route.path ?? route.name ?? route}`);
 			const router = new RouteHistory(
-				new Router(routeTable, router => {}),
+				new Router(routeTable, createTraceRouteElement),
 				storage, observer, observer, observer
 			);
 

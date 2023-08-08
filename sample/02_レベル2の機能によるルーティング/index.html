@@ -3,7 +3,7 @@
 	<head>
 		<script type="module">
 			import { RouteTable, Router, BrowserHistoryStorage } from '../../src/level1/routing.level1.js';
-			import { RouteHistory } from '../../src/level2/routing.level2.js';
+			import { createTraceRouteElement, RouteHistory } from '../../src/level2/routing.level2.js';
 
 			// リンクの生成
 			function link(route, name) {
@@ -39,12 +39,12 @@
 
 			const observer = (from, to) => {
 				if (from) {
-					for (const route of from.route) {
+					for (const route of from.routes) {
 						route.body.view.leave();
 					}
 				}
 				if (to) {
-					for (const route of to.route) {
+					for (const route of to.routes) {
 						route.body.view.enter();
 					}
 				}
@@ -53,8 +53,8 @@
 			const view = document.getElementById('view');
 			const storage = new BrowserHistoryStorage(window.history, route => `#${route.path ?? route}`);
 			const router = new RouteHistory(
-				new Router(new RouteTable()),
-				storage, observer, observer, observer
+				new Router(new RouteTable(), createTraceRouteElement),
+				storage, observer, observer, observer, observer
 			);
 			// ルート情報の定義
 			const route1 = router.add('/');

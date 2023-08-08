@@ -5,21 +5,25 @@
 /**
  * @template T
  * @typedef {{
- *		params?: RouteParams;
- *		search?: string;
  *		body?: T;
  *		segment?: boolean;
- *		rest?: string;
- *		redirect?: string | Route<T>;
- *		forward?: string | Route<T>;
- * } & ({
  *		path: string;
+ *		name?: string;
  * } | {
+ *		body?: T;
+ *		segment?: boolean;
+ *		path?: string;
  *		name: string;
- * } | {
- *		path: string;
- *		name: string;
- * })} Route ルート情報
+ * }} Route ルート情報
+ */
+
+/**
+ * @template T
+ * @typedef { Route<T> & {
+ * 		readonly params?: RouteParams;
+ * 		readonly search: 'path' | 'name';
+ * 		readonly rest?: string;
+ * } } ResolveRoute IRouteTable.get()などより取得するルート情報
  */
 
 /**
@@ -38,6 +42,50 @@
  * }} RouteTree ルート解決のためのツリー
  */
 
+ /**
+  * ディレクトリパラメータのマージ
+  * @param { RouteParams } dest マージ先のパラメータ
+  * @param { ...RouteParams } srcs マージ対象のパラメータ
+  */
+ function mergeParams(dest, ...srcs) {
+	for (const src of srcs) {
+		for (const key in src) {
+			// パラメータを配列で格納する
+			if (key in dest) {
+				if (Array.isArray(dest[key])) {
+					if (Array.isArray(src[key])) {
+						dest[key] = [...dest[key], ...src[key]];
+					}
+					else {
+						dest[key] = [...dest[key], src[key]];
+					}
+				}
+				else {
+					if (Array.isArray(src[key])) {
+						dest[key] = [dest[key], ...src[key]];
+					}
+					else {
+						dest[key] = [dest[key], src[key]];
+					}
+				}
+			}
+			// パラメータを文字列/配列で格納する
+			else {
+				dest[key] = src[key];
+			}
+		}
+	}
+ }
+
+ /**
+  * パスを分解してトークンごとの配列を生成
+  * @param { string } path パス
+  * @returns { string[] } pathをトークンごとに分解した配列
+  */
+ function createPathArray(path) {
+	return path.split('/').map(x => x.trim()).filter(x => x.length !== 0);
+ }
+
 /**
  * ルートテーブルのインターフェース
  * @template T
@@ -45,6 +93,14 @@
  */
 /* istanbul ignore next */
 class IRouteTable {
+	/**
+	 * ルートの置換を行う
+	 * @param { InputRoute<T> | undefined } dest 置換先のルート。undefinedの場合は新規作成する
+	 * @param { InputRoute<T> | undefined } src 置換元のルート。stringの場合はpathのみの置換、undefinedの場合はdestの削除のみ行う
+	 * @return { Route<T> | undefined } srcがundefinedであるときは置換元のルート、そうでない場合は置換結果のルート
+	 */
+	replace(dest, src) { throw new Error('not implemented.'); }
+
 	/**
 	 * ルートの追加
 	 * @param { InputRoute<T> } route 追加するルート
@@ -62,7 +118,7 @@ class IRouteTable {
 	/**
 	 * ルートの取得
 	 * @param { InputRoute<T> } route 取得対象のルート情報
-	 * @return { Route<T> & { search: string; } | undefined } 解決したルート情報
+	 * @return { ResolveRoute<T> | undefined } 解決したルート情報
 	 */
 	get(route) { throw new Error('not implemented.'); }
 
@@ -153,19 +209,7 @@ class RouteTable {
 		const result = [];
 		for (const { subtree, param, depth } of stack) {
 			const preformattedToken = RouteTable.#tokenType(subtree.name)[1];
-			// ディレクトリパラメータを配列で格納する
-			if (preformattedToken in result) {
-				if (Array.isArray(result[preformattedToken])) {
-					result[preformattedToken] = [...result[preformattedToken], param];
-				}
-				else {
-					result[preformattedToken] = [result[preformattedToken], param];
-				}
-			}
-			// ディレクトリパラメータを文字列で格納する
-			else {
-				result[preformattedToken] = param;
-			}
+			mergeParams(result, { [preformattedToken]: param });
 		}
 		return result;
 	};
@@ -180,7 +224,7 @@ class RouteTable {
 		/** @type { string } ルートへのパス */
 		const path = typeof route === 'string' ? route : route.path;
 		let tree = this.#routeTree;
-		const list = path.split('/');
+		const list = createPathArray(path);
 		/** @type { StackElement[] } ディレクトリパラメータのためのスタック */
 		const paramsStack = [];
 		/** @type { StackElement[] } 深さ優先探索のためのスタック */
@@ -188,11 +232,7 @@ class RouteTable {
 
 		// RootからRouteを探索
 		for (let i = 0; i < list.length; ++i) {
-			const token = list[i].trim();
-			// '/path/'と'/path'のようなパスなどを区別しない
-			if (token.length === 0) {
-				continue;
-			}
+			const token = list[i];
 			const type = RouteTable.#tokenType(token)[0];
 			if (matching) {
 				// ルートのセグメントがtrueのときはこの時点のルートをルート解決候補としてスタックに積む
@@ -260,37 +300,6 @@ class RouteTable {
 			return this.#routeNameIndex[route.name];
 		}
 		return undefined;
-	}
-
-	/**
-	 * Proxyでラップしたルートを得る
-	 * @param { Route<T> } route 
-	 * @param { Partial<Route<T>> } getoption 
-	 */
-	#wrapWithProxy(route, getoption = {}) {
-		const routeTable = this;
-		return new Proxy(route, {
-			get(target, prop, receiver) {
-				if ((prop in getoption) && (getoption[prop] !== undefined)) { return getoption[prop]; }
-				return Reflect.get(...arguments);
-			},
-			set(obj, prop, value) {
-				if (prop === 'path' || prop === 'name') {
-					if (typeof value === 'string') {
-						// ルートテーブルを修正する
-						routeTable.replace(obj, { [prop]: value });
-						return true;
-					}
-					throw new Error(`'${value}' was not 'String' type.`);
-				}
-				return Reflect.set(...arguments);
-			},
-			/* istanbul ignore next */
-			has(target, key) {
-				if ((key in getoption) && (getoption[key] !== undefined)) { return true; }
-				return key in target;
-			}
-		});
 	}
 
 	/**
@@ -381,14 +390,11 @@ class RouteTable {
 			}
 
 			// pathによる追加の実施
-			if (typeof src === 'string' || src?.path !== undefined) {
-				const { tree, rest } = this.#findByPath(src, false);
+			if (result?.path !== undefined) {
+				const { tree, rest } = this.#findByPath(result, false);
 				let p = tree;
 				// ルートの挿入位置までツリーを構築
-				for (const token of rest.map(x => x.trim())) {
-					if (token.length === 0) {
-						continue;
-					}
+				for (const token of rest) {
 					const type = RouteTable.#tokenType(token)[0];
 					p[type] = p[type] || {};
 					p[type][token] = { name: token, parent: p };
@@ -397,32 +403,26 @@ class RouteTable {
 				// 不整合なnameに対応するルートを削除
 				if (p.route !== undefined && p.route?.name !== undefined) {
 					const name = p.route.name;
-					if (name !== src?.name) {
+					if (name !== result?.name) {
 						this.#removeOnlyName(p.route);
 					}
 				}
 				p.route = result;
 			}
 			// nameによる追加の実施
-			if (typeof src !== 'string' && src?.name !== undefined) {
+			if (result?.name !== undefined) {
 				// 不整合なpathに対応するルートを削除
-				if (this.#findByName(src) !== undefined && this.#routeNameIndex[src.name]?.path !== undefined) {
-					const path = this.#routeNameIndex[src.name].path;
-					if (path !== src?.path) {
-						this.#removeOnlyPath(this.#routeNameIndex[src.name]);
+				if (this.#findByName(result) !== undefined && this.#routeNameIndex[result.name]?.path !== undefined) {
+					const path = this.#routeNameIndex[result.name].path;
+					if (path !== result?.path) {
+						this.#removeOnlyPath(this.#routeNameIndex[result.name]);
 					}
 				}
-				this.#routeNameIndex[src.name] = result;
+				this.#routeNameIndex[result.name] = result;
 			}
 		}
-		if (result !== undefined) {
-			if (src !== undefined) {
-				// ルートテーブルに存在するルートを返す場合はProxyでラップしてpathの変更を検知できるようにする
-				return this.#wrapWithProxy(result);
-			}
-			return result;
-		}
-		return undefined;
+
+		return result;
 	}
 
 	/**
@@ -469,20 +469,26 @@ class RouteTable {
 	/**
 	 * ルートの取得
 	 * @param { InputRoute<T> } route 取得対象のルート情報
-	 * @return { Route<T> & { search: string; } | undefined }取得したルート情報
+	 * @return { ResolveRoute<T> | undefined }取得したルート情報
 	 */
 	get(route) {
 		// pathによる取得
 		if (typeof route === 'string' || route?.path !== undefined) {
 			const { tree, rest, params } = this.#findByPath(route, true);
 
-			if (tree?.route !== undefined && tree.route !== undefined) {
-				if (tree.route?.segment === true) {
+			if (tree?.route !== undefined) {
+				const r = { ...tree.route };
+				if (r?.segment === true) {
 					// restを許容する
-					return this.#wrapWithProxy(tree.route, { params, search: 'path', rest: rest.join('/') });
+					r.params = params;
+					r.search = 'path';
+					r.rest = rest.join('/');
+					return r;
 				}
 				else if (rest.length === 0) {
-					return this.#wrapWithProxy(tree.route, { params, search: 'path' });
+					r.params = params;
+					r.search = 'path';
+					return r;
 				}
 			}
 			return undefined;
@@ -491,7 +497,9 @@ class RouteTable {
 		else {
 			const r = this.#findByName(route);
 			if (r !== undefined) {
-				return this.#wrapWithProxy(r, { search: 'name' });
+				const r2 = { ...r };
+				r2.search = 'name';
+				return r2;
 			}
 			return undefined;
 		}
@@ -529,4 +537,4 @@ class RouteTable {
 	}
 }
 
-export { IRouteTable, RouteTable };
+export { mergeParams, createPathArray, IRouteTable, RouteTable };
