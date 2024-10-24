@@ -72,17 +72,17 @@ class StubRouteTable {
 	 */
 	get(route) {
 		// スタブなので単純な線型探索で解決
-		const path = typeof route === 'string' ? route : route?.path;
-		const name = typeof route === 'string' ? undefined : route?.name;
+		const path = typeof route === 'string' ? route : route.path;
+		const name = typeof route === 'string' ? undefined : route.name;
 		if (path) {
-			const r = this.#routes.find(e => e?.path !== undefined && e.path == path);
+			const r = this.#routes.find(e => e.path !== undefined && e.path == path);
 			if (r !== undefined) {
 				r.search = 'path';
 				return r;
 			}
 		}
 		if (name) {
-			const r = this.#routes.find(e => e?.name !== undefined && e.name == name);
+			const r = this.#routes.find(e => e.name !== undefined && e.name == name);
 			if (r !== undefined) {
 				r.search = 'name';
 				return r;
@@ -158,7 +158,7 @@ describe('Router', () => {
 			const router = new Router(routeTable, createTraceRouteElement, mockObserver);
 			const traceRoute1 = router.routing({ name: 'page4' });
 			expect(traceRoute1.routes.length).toBe(1);
-			expect(traceRoute1?.path).toBe(undefined);
+			expect(traceRoute1.path).toBe(undefined);
 			expect(mockObserver.mock.calls[0][0].name).toBe('page4');
 			expect(mockObserver.mock.calls).toHaveLength(1);
 		});
@@ -186,7 +186,7 @@ describe('Router', () => {
 			const router = new Router(routeTable, createTraceRouteElement, mockObserver);
 			const traceRoute = router.routing(routes[3]);
 			expect(traceRoute.routes.length).toBe(1);
-			expect(traceRoute.routes[0]?.route !== undefined).toBe(true);
+			expect(traceRoute.routes[0].route !== undefined).toBe(true);
 			expect(traceRoute.routes[0].router).toBe(router);
 			// pathとname、bodyはルートテーブルから直接取得したものと同一であることを保証
 			const route = routeTable.get(routes[3]);
@@ -201,7 +201,7 @@ describe('Router', () => {
 			const router = new Router(routeTable, createTraceRouteElement, mockObserver);
 			const traceRoute = router.routing(path);
 			expect(traceRoute.routes.length).toBe(1);
-			expect(traceRoute.routes[0]?.route !== undefined).toBe(false);
+			expect(traceRoute.routes[0].route !== undefined).toBe(false);
 			expect(traceRoute.routes[0].router === router).toBe(true);
 			expect(mockObserver.mock.calls[0][0]).toBe(undefined);
 			expect(mockObserver.mock.calls).toHaveLength(1);

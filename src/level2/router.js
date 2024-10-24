@@ -26,7 +26,7 @@ import { Route, ResolveRoute } from "./route.js";
  */
 
 /**
- * @typedef { { name: string; } | { name: string; } | string } InputRoute ルート解決などの際に引数として入力するルート情報(レベル1とは異なりpathを必須にする)
+ * @typedef { { name: string; } | string } InputRoute ルート解決などの際に引数として入力するルート情報(レベル1とは異なりpathを必須にする)
  */
 
 /**

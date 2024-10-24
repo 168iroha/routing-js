@@ -11,7 +11,7 @@ import { jest } from '@jest/globals';
 
 describe('RouteHistory', () => {
 	/** @type { jest.Mock<L1RouterObserver<L1RouteBody<T, R1, R2>>> } ルーティング通知を受け取るオブザーバのモック  */
-	const mockObserver = jest.fn((route, trace) => route?.body?.nexthop?.l1router.routing(route, trace));
+	const mockObserver = jest.fn((route, trace) => route?.body?.nexthop?.l1router?.routing?.(route, trace));
 
 	beforeEach(() => {
 		mockObserver.mockClear();

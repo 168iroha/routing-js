@@ -39,7 +39,7 @@ import { ARouter } from "./router.js";
  * 		readonly route: Route<T, R1, R2>;
  * 		nexthop?: ARouter<T, R1, R2>;
  *		lifecycle: RouteLifecycle<T, R1, R2>;
- *		navigate?: { type: 'redirect' | 'forward'; route: Route<T, R1, R2>; map: (params: L1RouteParams) => L1RouteParams; };
+ *		navigate?: { type: 'redirect' | 'forward'; route: Route<T, R1, R2>; map?: (params: L1RouteParams) => L1RouteParams; };
  * 		body?: T;
  * }} L1RouteBody レベル1におけるルート情報のボディ
  */
