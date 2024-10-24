@@ -48,7 +48,7 @@ class StubRouter {
 	 * @return { TraceRoute<RT, TRE> } ルート解決の経路
 	 */
 	routing(route, trace = new TraceRoute()) {
-		return new TraceRoute(undefined, route?.path, [ ...trace.routes, { router: this, route } ]);
+		return new TraceRoute(undefined, route.path, [ ...trace.routes, { router: this, route } ]);
 	}
 }
 

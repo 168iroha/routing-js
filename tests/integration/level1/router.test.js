@@ -58,14 +58,14 @@ describe('Router', () => {
 			routeTable.add({ path: '/page1', segment: true }).body = (route, trace) => {
 				mockBody(route, trace);
 				// 別のルータでルーティングする
-				return subrouter?.routing?.(route, trace);
+				return subrouter.routing(route, trace);
 			};
 
 			// subRouteTableの'/page1-2'へマッチングする
 			const traceRoute1 = router.routing('/page1/page1-2');
 			expect(traceRoute1.routes.length).toBe(2);
-			expect(traceRoute1.routes[0]?.route !== undefined).toBe(true);
-			expect(traceRoute1.routes[1]?.route !== undefined).toBe(true);
+			expect(traceRoute1.routes[0].route !== undefined).toBe(true);
+			expect(traceRoute1.routes[1].route !== undefined).toBe(true);
 			expect(traceRoute1.routes[0].router).toBe(router);
 			expect(traceRoute1.routes[1].router).toBe(subrouter);
 			expect(mockBody.mock.calls).toHaveLength(2);
@@ -77,7 +77,7 @@ describe('Router', () => {
 			// subRouteTableの'/page1-1'へではなくrouteTableの'/page1/page1-1'へマッチングする
 			const traceRoute2 = router.routing('/page1/page1-1');
 			expect(traceRoute2.routes.length).toBe(1);
-			expect(traceRoute2.routes[0]?.route !== undefined).toBe(true);
+			expect(traceRoute2.routes[0].route !== undefined).toBe(true);
 			expect(traceRoute2.routes[0].router).toBe(router);
 			expect(mockBody.mock.calls[2][0].path).toBe('/page1/page1-1');
 			expect(mockBody.mock.calls[2][0].rest).toBe(undefined);
@@ -85,8 +85,8 @@ describe('Router', () => {
 			// subRouteTableでマッチングを試みるが失敗する
 			const traceRoute3 = router.routing('/page1/page1-3');
 			expect(traceRoute3.routes.length).toBe(2);
-			expect(traceRoute3.routes[0]?.route !== undefined).toBe(true);
-			expect(traceRoute3.routes[1]?.route !== undefined).toBe(false);
+			expect(traceRoute3.routes[0].route !== undefined).toBe(true);
+			expect(traceRoute3.routes[1].route !== undefined).toBe(false);
 			expect(traceRoute3.routes[0].router).toBe(router);
 			expect(traceRoute3.routes[1].router).toBe(subrouter);
 			expect(mockBody.mock.calls[3][0].path).toBe('/page1/page1-3');

@@ -19,15 +19,15 @@ import { ARouter } from "./router.js";
 /**
  * @template T, R1, R2
  * @typedef {{
- *     beforeRouteEnter?: (from: TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>>?, to: TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>>?) => unknown;
- *     afterRouteEnter?: (from: TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>>?, to: TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>>?) => unknown;
- *     beforeRouteLeave?: (from: TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>>?, to: TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>>?) => unknown;
- *     afterRouteLeave?: (from: TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>>?, to: TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>>?) => unknown;
- *     beforeRouteUpdate?: (from: TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>>?, to: TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>>?) => unknown;
- *     afterRouteUpdate?: (from: TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>>?, to: TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>>?) => unknown;
- *     routeEnter?: (from: TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>>?, to: TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>>?) => unknown;
- *     routeLeave?: (from: TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>>?, to: TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>>?) => unknown;
- *     routeUpdate?: (from: TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>>?, to: TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>>?) => unknown;
+ *     beforeRouteEnter?: (from: Route<T, R1, R2>?, to: Route<T, R1, R2>?) => unknown;
+ *     afterRouteEnter?: (from: Route<T, R1, R2>?, to: Route<T, R1, R2>?) => unknown;
+ *     beforeRouteLeave?: (from: Route<T, R1, R2>?, to: Route<T, R1, R2>?) => unknown;
+ *     afterRouteLeave?: (from: Route<T, R1, R2>?, to: Route<T, R1, R2>?) => unknown;
+ *     beforeRouteUpdate?: (from: Route<T, R1, R2>?, to: Route<T, R1, R2>?) => unknown;
+ *     afterRouteUpdate?: (from: Route<T, R1, R2>?, to: Route<T, R1, R2>?) => unknown;
+ *     routeEnter?: (from: Route<T, R1, R2>?, to: Route<T, R1, R2>?) => unknown;
+ *     routeLeave?: (from: Route<T, R1, R2>?, to: Route<T, R1, R2>?) => unknown;
+ *     routeUpdate?: (from: Route<T, R1, R2>?, to: Route<T, R1, R2>?) => unknown;
  *     routing?: (trace: TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>>) => TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>> | undefined;
  * }} RouteLifecycle ルート情報に対するライフサイクルフック
  */
@@ -39,7 +39,7 @@ import { ARouter } from "./router.js";
  * 		readonly route: Route<T, R1, R2>;
  * 		nexthop?: ARouter<T, R1, R2>;
  *		lifecycle: RouteLifecycle<T, R1, R2>;
- *		navigate?: { type: 'redirect' | 'forward'; route: Route<T, R1, R2>; map: (params: L1RouteParams) => L1RouteParams; };
+ *		navigate?: { type: 'redirect' | 'forward'; route: Route<T, R1, R2>; map?: (params: L1RouteParams) => L1RouteParams; };
  * 		body?: T;
  * }} L1RouteBody レベル1におけるルート情報のボディ
  */
@@ -209,6 +209,20 @@ class Route {
 	routing(params = {}) {
 		return this.#route.body.router.base.routing(this.path.dispatch(params).toString());
 	}
+
+	/**
+	 * 引数に渡されたコールバック関数を呼び出す
+	 * @param { (val: L1RouteBody<T, R1, R2>) => unknown } callback 呼びだすコールバック関数
+	 * @returns this
+	 */
+	/* istanbul ignore next */
+	call(callback) {
+		if (!this.#route.body) {
+			throw new Error('Route information is invalid.');
+		}
+		callback(this.#route.body);
+		return this;
+	}
 }
 
 /**
@@ -223,6 +237,8 @@ class ResolveRoute extends Route {
 	search;
 	/** @type { string | undefined } 検索時の余り */
 	rest;
+	/** @type { any } 任意情報 */
+	any;
 
 	/**
 	 * ルート情報の初期化

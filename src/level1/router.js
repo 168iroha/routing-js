@@ -108,9 +108,9 @@ class Router {
 		const r = this.#routeTable.get(
 			typeof route !== 'string'&& route.rest !== undefined
 			? { path: route.rest } : route);
-		const path = typeof route === 'string' ? route : route?.path;
-		const name = typeof route === 'string' ? undefined : route?.name;
-		const resolvePath = path ?? trace?.path ?? r?.path;
+		const path = typeof route === 'string' ? route : route.path;
+		const name = typeof route === 'string' ? undefined : route.name;
+		const resolvePath = path ?? trace.path ?? r?.path;
 
 		// 経路の要素を生成して生成に成功すれば経路に追加する
 		const traceRouteElement = this.#createTRE(this, r);

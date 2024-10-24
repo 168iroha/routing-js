@@ -17,7 +17,7 @@ import { jest } from '@jest/globals';
 
 describe('Route', () => {
 	/** @type { jest.Mock<L1RouterObserver<L1RouteBody<T, R1, R2>>> } ルーティング通知を受け取るオブザーバのモック  */
-	const mockObserver = jest.fn((route, trace) => route?.body?.nexthop?.l1router.routing(route, trace));
+	const mockObserver = jest.fn((route, trace) => route?.body?.nexthop?.l1router?.routing?.(route, trace));
 
 	beforeEach(() => {
 		mockObserver.mockClear();
@@ -34,7 +34,7 @@ describe('Route', () => {
 		const l1router1 = new L1Router(l1routeTable1, createTraceRouteElement, mockObserver);
 
 		const storage1 = new MemoryHistoryStorage();
-		/** @type { RouteHistory<T, R1, R2, R3> } メインのルータ */
+		/** @type { RouteHistory<T, R1, R2, R3, R4> } メインのルータ */
 		const router1 = new RouteHistory(l1router1, storage1);
 
 		/** @type { L1RouteTable<L1RouteBody<T, R1, R2>> } サブのレベル1ルートテーブル */
@@ -104,7 +104,7 @@ describe('Route', () => {
 		const l1router = new L1Router(l1routeTable, createTraceRouteElement, mockObserver);
 
 		const storage = new MemoryHistoryStorage();
-		/** @type { RouteHistory<T, R1, R2, R3> } メインのルータ */
+		/** @type { RouteHistory<T, R1, R2, R3, R4> } メインのルータ */
 		const router = new RouteHistory(l1router, storage);
 
 		expect(router.get('/page2')).toBe(undefined);
@@ -129,7 +129,7 @@ describe('Route', () => {
 		const l1router = new L1Router(l1routeTable, createTraceRouteElement, mockObserver);
 
 		const storage = new MemoryHistoryStorage();
-		/** @type { RouteHistory<T, R1, R2, R3> } メインのルータ */
+		/** @type { RouteHistory<T, R1, R2, R3, R4> } メインのルータ */
 		const router = new RouteHistory(l1router, storage);
 
 		expect(router.get('/page2')).toBe(undefined);

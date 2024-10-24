@@ -15,23 +15,9 @@
 				return node;
 			}
 
-			const body1 = (view) => {
+			const body = (view, path) => {
 				const content = document.createElement('div');
-				content.textContent = `Show '/'`;
-				const enter = () => view.appendChild(content);
-				const leave = () => view.removeChild(content);
-				return { enter, leave };
-			};
-			const body2 = (view) => {
-				const content = document.createElement('div');
-				content.textContent = `Show '/page1'`;
-				const enter = () => view.appendChild(content);
-				const leave = () => view.removeChild(content);
-				return { enter, leave };
-			};
-			const body3 = (view) => {
-				const content = document.createElement('div');
-				content.textContent = `Show '/page2'`;
+				content.textContent = `Show '${path}'`;
 				const enter = () => view.appendChild(content);
 				const leave = () => view.removeChild(content);
 				return { enter, leave };
@@ -58,11 +44,11 @@
 			);
 			// ルート情報の定義
 			const route1 = router.add('/');
-			route1.body = { text: 'Routeの表示', view: body1(view) };
+			route1.body = { text: 'Routeの表示', view: body(view, '/') };
 			const route2 = router.add('/page1');
-			route2.body = { text: 'Page1の表示', view: body2(view) };
+			route2.body = { text: 'Page1の表示', view: body(view, '/page1') };
 			const route3 = router.add('/page2');
-			route3.body = { text: 'Page2の表示', view: body3(view) };
+			route3.body = { text: 'Page2の表示', view: body(view, '/page2') };
 
 			window.addEventListener('popstate', e => {
 				const state = e.state;

@@ -4,23 +4,9 @@
 		<script type="module">
 			import { createTraceRouteElement, RouteTable, Router, BrowserHistoryStorage, RouteHistory } from '../../src/level1/routing.level1.js';
 
-			const body1 = (view) => {
+			const body = (view, path) => {
 				const content = document.createElement('div');
-				content.textContent = `Show '/'`;
-				const enter = () => view.appendChild(content);
-				const leave = () => view.removeChild(content);
-				return { enter, leave };
-			};
-			const body2 = (view) => {
-				const content = document.createElement('div');
-				content.textContent = `Show '/page1'`;
-				const enter = () => view.appendChild(content);
-				const leave = () => view.removeChild(content);
-				return { enter, leave };
-			};
-			const body3 = (view) => {
-				const content = document.createElement('div');
-				content.textContent = `Show '/page2'`;
+				content.textContent = `Show '${path}'`;
 				const enter = () => view.appendChild(content);
 				const leave = () => view.removeChild(content);
 				return { enter, leave };
@@ -41,9 +27,9 @@
 
 			const view = document.getElementById('view');
 			const routes = [
-				{ path: '/', body: body1(view) },
-				{ path: '/page1', body: body2(view) },
-				{ path: '/page2', body: body3(view) },
+				{ path: '/', body: body(view, '/') },
+				{ path: '/page1', body: body(view, '/page1') },
+				{ path: '/page2', body: body(view, '/page2') },
 			];
 			const routeTable = new RouteTable(routes);
 			const storage = new BrowserHistoryStorage(window.history, route => `#${route.path ?? route.name ?? route}`);

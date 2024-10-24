@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<script type="module">
+			import { BrowserHistoryStorage } from '../../src/level1/routing.level1.js';
+			import { createRouter, loadJSONRouteList } from '../../src/level3/routing.level3.js';
+
+			// リンクの生成
+			function link(route, name) {
+				const node = document.createElement(name);
+				node.addEventListener('click', () => {
+					route.push();
+					return false;
+				});
+				return node;
+			}
+
+			const view = document.getElementById('view');
+			const storage = new BrowserHistoryStorage(window.history, route => `#${route.path ?? route}`);
+			const router = createRouter(storage);
+			// ルート情報の定義
+			const routeTable = [
+				{ path: '/', body: { text: 'Routeの表示', order: 1 } },
+				{ path: '/page1', body: { text: 'Page1の表示', order: 2 } },
+				{ path: '/page2', body: { text: 'Page2の表示', order: 3 } }
+			];
+			loadJSONRouteList(router, routeTable);
+			router.lifecycle.routeLeave = (from, to) => view.removeChild(from.any);
+			router.lifecycle.routeEnter = (from, to) => {
+				const content = document.createElement('div');
+				content.textContent = `Show '${to.path}'`;
+				view.appendChild(content);
+				to.any = content;
+			};
+
+			window.addEventListener('popstate', e => {
+				const state = e.state;
+				if (state) {
+					// 「戻る」や「進む」のブラウザのイベントを通知する
+					router.notify();
+				}
+			});
+			window.addEventListener('DOMContentLoaded', e => {
+				// 初期状態の表示する要素の決定
+				router.replace(window.location.hash.length === 0 ? '/' : window.location.hash.substr(1));
+			});
+
+			// 遷移イベントの設置
+			const routeListNode = document.getElementById('route-list');
+			routeTable.sort((x, y) => x.body.order - y.body.order).forEach(route => {
+				const node = link(router.get(route.path), 'li');
+				node.textContent = route.body.text;
+				routeListNode.appendChild(node);
+			});
+		</script>
+	</head>
+	<body>
+		<ul id="route-list"></ul>
+		<div id="view"></div>
+	</body>
+</html>

@@ -236,17 +236,17 @@ class RouteTable {
 			const type = RouteTable.#tokenType(token)[0];
 			if (matching) {
 				// ルートのセグメントがtrueのときはこの時点のルートをルート解決候補としてスタックに積む
-				if (tree?.route?.segment === true) {
+				if (tree.route?.segment === true) {
 					depthStack.push({ subtree: tree, param: '', depth: i });
 				}
 				// ディレクトリパラメータによるルート解決候補をスタックに積む
-				if (tree?.params !== undefined && Object.keys(tree.params).length !== 0) {
+				if (tree.params !== undefined && Object.keys(tree.params).length !== 0) {
 					for (const treeKey in tree.params) {
 						depthStack.push({ subtree: tree.params[treeKey], param: token, depth: i });
 					}
 				}
 
-				if (!(tree?.children !== undefined) || !(token in tree.children)) {
+				if (!(tree.children !== undefined) || !(token in tree.children)) {
 					// ルートが見つからないかつバックトラッキング不可の場合は終了
 					if (depthStack.length === 0) {
 						return { tree, rest: list.slice(i)
@@ -258,7 +258,7 @@ class RouteTable {
 						paramsStack.pop();
 					}
 					// ディレクトリパラメータではない場合(tree.route.segment === trueも満たす)
-					if (param.length === 0/* && tree?.route?.segment === true*/) {
+					if (param.length === 0/* && tree.route?.segment === true*/) {
 						return { tree: subtree, rest: list.slice(depth)
 							, ...(paramsStack.length === 0 ? {} : { params: this.#toParams(paramsStack) }) };
 					}
@@ -270,7 +270,7 @@ class RouteTable {
 				else {
 					tree = tree.children[token];
 					// ルートが見つかった場合はそのまま終了
-					if (i + 1 === list.length && tree?.route !== undefined) {
+					if (i + 1 === list.length && tree.route !== undefined) {
 						break;
 					}
 				}
@@ -316,14 +316,14 @@ class RouteTable {
 			// 削除対象の存在チェック
 			let tree = undefined, rest = undefined, routeByName = undefined;
 			let removePath = undefined;
-			if (typeof dest === 'string' || dest?.path !== undefined) {
+			if (typeof dest === 'string' || dest.path !== undefined) {
 				({ tree, rest } = this.#findByPath(dest, false));
 				if (rest.length !== 0) {
 					throw new Error(`The Route '${dest.path ?? dest}' was not exists`);
 				}
 				removePath = tree.route.path;
 			}
-			if (typeof dest !== 'string' && dest?.name !== undefined) {
+			if (typeof dest !== 'string' && dest.name !== undefined) {
 				routeByName = this.#findByName(dest);
 				if (routeByName === undefined) {
 					throw new Error(`The Route name '${dest.name}' was not exists`);
@@ -331,16 +331,16 @@ class RouteTable {
 			}
 
 			// pathによる削除の実施
-			if (typeof dest === 'string' || dest?.path !== undefined) {
+			if (typeof dest === 'string' || dest.path !== undefined) {
 				result = tree.route;
 				delete tree.route;
-				let p = tree;
+				let p = /** @type { RouteTree<T> }} */(tree);
 				// 葉から順にルート情報を削除する
 				while (p.parent !== null && p.name.length !== 0) {
 					const type = RouteTable.#tokenType(p.name)[0];
 					// 子情報が存在しなければ親から自ノードを削除
-					if ((!(p?.children !== undefined) || Object.keys(p.children).length === 0) &&
-						(!(p?.params !== undefined) || Object.keys(p.params).length === 0)) {
+					if ((!(p.children !== undefined) || Object.keys(p.children).length === 0) &&
+						(!(p.params !== undefined) || Object.keys(p.params).length === 0)) {
 						delete p.parent[type][p.name];
 						p = p.parent;
 					}
@@ -349,12 +349,12 @@ class RouteTable {
 					}
 				}
 				// ルートのインデックスからも削除(destで指定されている場合は実施しない)
-				if (result?.name !== undefined && result.name !== dest?.name) {
+				if (result?.name !== undefined && result.name !== dest.name) {
 					this.#removeOnlyName(result);
 				}
 			}
 			// nameによる削除の実施
-			if (typeof dest !== 'string' && dest?.name !== undefined) {
+			if (typeof dest !== 'string' && dest.name !== undefined) {
 				result = routeByName;
 				delete this.#routeNameIndex[dest.name];
 				// ルートツリーからも削除(destで指定されている場合は実施しない)
@@ -390,7 +390,7 @@ class RouteTable {
 			}
 
 			// pathによる追加の実施
-			if (result?.path !== undefined) {
+			if (result.path !== undefined) {
 				const { tree, rest } = this.#findByPath(result, false);
 				let p = tree;
 				// ルートの挿入位置までツリーを構築
@@ -403,18 +403,18 @@ class RouteTable {
 				// 不整合なnameに対応するルートを削除
 				if (p.route !== undefined && p.route?.name !== undefined) {
 					const name = p.route.name;
-					if (name !== result?.name) {
+					if (name !== result.name) {
 						this.#removeOnlyName(p.route);
 					}
 				}
 				p.route = result;
 			}
 			// nameによる追加の実施
-			if (result?.name !== undefined) {
+			if (result.name !== undefined) {
 				// 不整合なpathに対応するルートを削除
-				if (this.#findByName(result) !== undefined && this.#routeNameIndex[result.name]?.path !== undefined) {
+				if (this.#findByName(result) !== undefined && this.#routeNameIndex[result.name].path !== undefined) {
 					const path = this.#routeNameIndex[result.name].path;
-					if (path !== result?.path) {
+					if (path !== result.path) {
 						this.#removeOnlyPath(this.#routeNameIndex[result.name]);
 					}
 				}
@@ -473,12 +473,12 @@ class RouteTable {
 	 */
 	get(route) {
 		// pathによる取得
-		if (typeof route === 'string' || route?.path !== undefined) {
+		if (typeof route === 'string' || route.path !== undefined) {
 			const { tree, rest, params } = this.#findByPath(route, true);
 
-			if (tree?.route !== undefined) {
+			if (tree.route !== undefined) {
 				const r = { ...tree.route };
-				if (r?.segment === true) {
+				if (r.segment === true) {
 					// restを許容する
 					r.params = params;
 					r.search = 'path';
@@ -515,21 +515,21 @@ class RouteTable {
 
 		// ルートの木構造の走査
 		while (stack.length !== 0) {
-			const tree = stack.pop();
-			if (tree?.params !== undefined && Object.keys(tree.params).length !== 0) {
+			const tree = /** @type { RouteTree<T> } */(stack.pop());
+			if (tree.params !== undefined && Object.keys(tree.params).length !== 0) {
 				stack.push(...Object.values(tree.params));
 			}
-			if (tree?.children !== undefined && Object.keys(tree.children).length !== 0) {
+			if (tree.children !== undefined && Object.keys(tree.children).length !== 0) {
 				stack.push(...Object.values(tree.children));
 			}
-			if (tree?.route !== undefined) {
+			if (tree.route !== undefined) {
 				callback(tree.route);
 			}
 		}
 
 		// ルートのインデックスの走査
 		for (const route of Object.values(this.#routeNameIndex)) {
-			if (!(route?.path !== undefined)) {
+			if (!(route.path !== undefined)) {
 				// 走査済みでないルートについてコールバックを呼び出す
 				callback(route);
 			}
