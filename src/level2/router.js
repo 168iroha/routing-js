@@ -427,6 +427,11 @@ class RouteHistory extends ARouter {
 		while (cnt++ < this.redirectionLimit) {
 			// ルート解決の実施
 			const traceRoute = this.#router.routing(nextRoute, new TraceRoute(this));
+			/* istanbul ignore next */
+			if (traceRoute.routes.length === 0) {
+				// ルート情報自体が存在しなければリダイレクトやフォワードもないため終了
+				return traceRoute;
+			}
 			const lastRoute = traceRoute.routes[traceRoute.routes.length - 1];
 
 			const to = lastRoute.l1route.body.navigate;
