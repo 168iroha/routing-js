@@ -5,3 +5,4 @@
 2. [JavaScriptでルーティングをやってみる【履歴操作編】 - いろはの物置き場](https://168iroha.net/blog/article/202306260059/)
 3. [JavaScriptでルーティングをやってみる【ルート情報編】 - いろはの物置き場](https://168iroha.net/blog/article/202307210051/)
 4. [JavaScriptでルーティングをやってみる【リダイレクト・フォワード編】 - いろはの物置き場](https://168iroha.net/blog/article/202308090039/)
+4. [JavaScriptでルーティングをやってみる【実用編】 - いろはの物置き場](https://168iroha.net/blog/article/202410250132/)

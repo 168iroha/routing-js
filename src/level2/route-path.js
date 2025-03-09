@@ -80,6 +80,15 @@ class RoutePath {
 		}).join('/'));
 	}
 
+	/**
+	 * ディレクトリパラメータを持つか判定する
+	 * @returns ディレクトリパラメータをもつ場合true、持たない場合false
+	 */
+	/* istanbul ignore next */
+	hasParams() {
+		return this.#path.split('/').some(token => token.startsWith(':'));
+	}
+
 	toString() {
 		return this.#path;
 	}
