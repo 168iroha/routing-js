@@ -7,8 +7,12 @@ import { TraceRoute } from "./trace-route.js";
  */
 
 /**
- * @template T
- * @typedef { import("./route-table.js").InputRoute<T> } InputRoute ルート解決などの際に引数として入力するルート情報
+ * @template RT
+ * @typedef { import("./trace-route.js").TraceRouteElement<RT> } TraceRouteElement ルータ型からルート解決の要素の型の取得
+ */
+
+/**
+ * @typedef { import("./route-table.js").InputRoute } InputRoute ルート解決などの際に引数として入力するルート情報
  */
 
 /**
@@ -22,16 +26,21 @@ import { TraceRoute } from "./trace-route.js";
  */
 
 /**
- * @template T, RT, TRE
- * @typedef { (router: IRouter<T, RT, TRE>, route: ResolveRoute<T> | undefined) => TRE | undefined } CreateTraceRouteElement TraceRouteのroutesの要素の生成する関数型
+ * @template T
+ * @typedef { (router: IRouter<T>, route: ResolveRoute<T> | undefined) => TraceRouteElement<DefaultRouter<IRouter<T>>> | undefined } CreateTraceRouteElement TraceRouteのroutesの要素の生成する関数型
+ */
+
+/**
+ * @template RT
+ * @typedef { RT extends { routeType: infer R } ? (Exclude<R['body'], undefined> extends { router: infer U } ? DefaultRouter<U> : RT) : never } DefaultRouter ルータが実際にルーティングをする際に利用するデフォルトのルータ
  */
 
 /**
  * TraceRouteのroutesの要素の生成
- * @template T, RT, TRE
- * @param { IRouter<T, RT, TRE> } router ルーティングを行ったルータ
+ * @template T
+ * @param { IRouter<T> } router ルーティングを行ったルータ
  * @param { ResolveRoute<T> | undefined } route 解決をしたルート情報
- * @returns { TRE | undefined }
+ * @returns { { router: IRouter<T>; route: ResolveRoute<T> | undefined } | undefined }
  */
 function createTraceRouteElement(router, route) {
 	return { router, route };
@@ -39,11 +48,16 @@ function createTraceRouteElement(router, route) {
 
 /**
  * ルータのインターフェース
- * @template T, RT, TRE
+ * @template T
  * @interface
  */
 /* istanbul ignore next */
 class IRouter {
+	/** @type { Route<T> } ルート情報(型推論でのみ利用) */
+	routeType;
+	/** @type { ReturnType<typeof createTraceRouteElement<T>> } 生成するルート解決結果を示すルート要素の型(型推論でのみ利用) */
+	traceRouteElementType;
+
 	/**
 	 * 内部でルートテーブルをもつ場合にルートテーブルの取得
 	 * @return { IRouteTable<T> } ルートテーブル
@@ -52,19 +66,19 @@ class IRouter {
 
 	/**
 	 * ルーティングの実施
-	 * @param { InputRoute<T> } route 遷移先のルート情報
-	 * @param { TraceRoute<RT, TRE> } trace 現時点でのルート解決の経路
-	 * @return { TraceRoute<RT, TRE> } ルート解決の経路
+	 * @param { InputRoute } route 遷移先のルート情報
+	 * @param { TraceRoute<DefaultRouter<IRouter<T>>> } trace 現時点でのルート解決の経路
+	 * @return { TraceRoute<DefaultRouter<IRouter<T>>> } ルート解決の経路
 	 */
 	routing(route, trace = new TraceRoute()) { throw new Error('not implemented.'); }
 }
 
 /**
  * ルータクラス
- * @template T, RT, TRE
- * @implements { IRouter<T, RT, TRE> }
+ * @template T
+ * @implements { IRouter<T> }
  */
-class Router {
+class Router extends IRouter {
 	/**
 	 * @type { IRouteTable<T> } ルート情報全体
 	 */
@@ -72,22 +86,23 @@ class Router {
 	/**
 	 * @type { RouterObserver<T> } ルーティングの通知を受け取るオブザーバ
 	 */
-	#observer;
+	observer;
 	/**
-	 * @type { CreateTraceRouteElement<T, RT, TRE> } TraceRouteのroutesの要素の生成する関数型
+	 * @type { CreateTraceRouteElement<T> } TraceRouteのroutesの要素の生成する関数型
 	 */
-	#createTRE;
+	createTRE;
 
 	/**
 	 * ルータの初期化
 	 * @param { IRouteTable<T> } routeTable 初期状態のルート情報
-	 * @param { CreateTraceRouteElement<T, RT, TRE> } createTRE TraceRouteのroutesの要素の生成する関数型
+	 * @param { CreateTraceRouteElement<T> } createTRE TraceRouteのroutesの要素の生成する関数型
 	 * @param { RouterObserver<T> } observer ルーティングの通知を受け取るオブザーバ
 	 */
 	constructor(routeTable, createTRE, observer = router => {}) {
+		super();
 		this.#routeTable = routeTable;
-		this.#createTRE = createTRE;
-		this.#observer = observer;
+		this.createTRE = createTRE;
+		this.observer = observer;
 	}
 
 	/**
@@ -99,9 +114,9 @@ class Router {
 
 	/**
 	 * ルーティングの実施
-	 * @param { InputRoute<T> } route 遷移先のルート情報
-	 * @param {  TraceRoute<RT, TRE> } trace 現時点でのルート解決の経路
-	 * @return { TraceRoute<RT, TRE> } ルート解決の経路
+	 * @param { InputRoute } route 遷移先のルート情報
+	 * @param { TraceRoute<DefaultRouter<IRouter<T>>> } trace 現時点でのルート解決の経路
+	 * @return { TraceRoute<DefaultRouter<IRouter<T>>> } ルート解決の経路
 	 */
 	routing(route, trace = new TraceRoute()) {
 		// restが存在する場合はrestをpathとして取得
@@ -113,7 +128,7 @@ class Router {
 		const resolvePath = path ?? trace.path ?? r?.path;
 
 		// 経路の要素を生成して生成に成功すれば経路に追加する
-		const traceRouteElement = this.#createTRE(this, r);
+		const traceRouteElement = this.createTRE(this, r);
 		const traceRoute = new TraceRoute(
 			trace.base,
 			resolvePath,
@@ -124,7 +139,7 @@ class Router {
 		if (r?.search === 'path') {
 			r2.path = path;
 		}
-		const ret = this.#observer(r2, traceRoute);
+		const ret = this.observer(r2, traceRoute);
 		
 		// デフォルトの動作
 		if (ret === undefined || ret === null) {

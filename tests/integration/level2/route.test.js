@@ -11,12 +11,12 @@ import { jest } from '@jest/globals';
  */
 
 /**
- * @template T, R1, R2
- * @typedef { import("../../../src/level2/route.js").L1RouteBody<T, R1, R2> } L1RouteBody ルート情報のボディ
+ * @template T
+ * @typedef { import("../../../src/level2/route.js").L1RouteBody<T> } L1RouteBody ルート情報のボディ
  */
 
 describe('Route', () => {
-	/** @type { jest.Mock<L1RouterObserver<L1RouteBody<T, R1, R2>>> } ルーティング通知を受け取るオブザーバのモック  */
+	/** @type { jest.Mock<L1RouterObserver<L1RouteBody<T>>> } ルーティング通知を受け取るオブザーバのモック  */
 	const mockObserver = jest.fn((route, trace) => route?.body?.nexthop?.l1router?.routing?.(route, trace));
 
 	beforeEach(() => {
@@ -24,29 +24,29 @@ describe('Route', () => {
 	});
 
 	it('複数のルータの結合時の基本操作(Routerの場合と同じ)', async () => {
-		/** @type { L1RouteTable<L1RouteBody<T, R1, R2>> } メインのレベル1ルートテーブル */
+		/** @type { L1RouteTable<L1RouteBody<T>> } メインのレベル1ルートテーブル */
 		const l1routeTable1 = new L1RouteTable([
 			{ path: '/' },
 			{ path: '/page1' },
 			{ path: '/page2' }
 		]);
-		/** @type { L1Router<L1RouteBody<T, R1, R2>, RT, TRE> } メインのレベル1ルータ */
+		// メインのレベル1ルータ
 		const l1router1 = new L1Router(l1routeTable1, createTraceRouteElement, mockObserver);
 
 		const storage1 = new MemoryHistoryStorage();
-		/** @type { RouteHistory<T, R1, R2, R3, R4> } メインのルータ */
+		// メインのルータ
 		const router1 = new RouteHistory(l1router1, storage1);
 
-		/** @type { L1RouteTable<L1RouteBody<T, R1, R2>> } サブのレベル1ルートテーブル */
+		/** @type { L1RouteTable<L1RouteBody<T>> } サブのレベル1ルートテーブル */
 		const l1routeTable2 = new L1RouteTable([
 			{ path: '/' },
 			{ path: '/page1-1' },
 			{ path: '/page1-2' }
 		]);
-		/** @type { L1Router<L1RouteBody<T, R1, R2>, RT, TRE> } サブのレベル1ルータ */
+		// サブのレベル1ルータ
 		const l1router2 = new L1Router(l1routeTable2, createTraceRouteElement, mockObserver);
 
-		/** @type { Router<T, R1, R2> } サブのルータ */
+		// サブのルータ
 		const router2 = new Router(l1router2, router1.get('/page1'));
 
 		// replace()の確認
@@ -61,7 +61,7 @@ describe('Route', () => {
 
 		// push()の確認
 		const route2 = router2.get('');
-		route2.push();
+		await route2.push();
 		expect(mockObserver.mock.calls).toHaveLength(4);
 		expect(mockObserver.mock.calls[2][0].path).toBe('/page1/');		// ルートテーブルで'/'と定義しているため'/'が付加される
 		expect(mockObserver.mock.calls[2][0].rest).toBe('');
@@ -85,7 +85,7 @@ describe('Route', () => {
 		expect(route4).toBe(undefined);
 
 		expect(router1.current.path).toBe('/page1/');
-		route3.transition();
+		await route3.transition();
 		expect(router1.current.path).toBe('/page1/page1-2');
 		expect(storage1.state.route).toBe('/page1/');
 		expect(mockObserver.mock.calls).toHaveLength(8);
@@ -96,15 +96,15 @@ describe('Route', () => {
 	});
 
 	it('取得したルート情報の取得と変更(pathの変更)', () => {
-		/** @type { L1RouteTable<L1RouteBody<T, R1, R2>> } メインのレベル1ルートテーブル */
+		/** @type { L1RouteTable<L1RouteBody<T>> } メインのレベル1ルートテーブル */
 		const l1routeTable = new L1RouteTable([
 			{ path: '/page1', name: 'page1' }
 		]);
-		/** @type { L1Router<L1RouteBody<T, R1, R2>, RT, TRE> } メインのレベル1ルータ */
+		// メインのレベル1ルータ
 		const l1router = new L1Router(l1routeTable, createTraceRouteElement, mockObserver);
 
 		const storage = new MemoryHistoryStorage();
-		/** @type { RouteHistory<T, R1, R2, R3, R4> } メインのルータ */
+		// メインのルータ
 		const router = new RouteHistory(l1router, storage);
 
 		expect(router.get('/page2')).toBe(undefined);
@@ -121,15 +121,15 @@ describe('Route', () => {
 	});
 
 	it('取得したルート情報の取得と変更(pathの変更2)', () => {
-		/** @type { L1RouteTable<L1RouteBody<T, R1, R2>> } メインのレベル1ルートテーブル */
+		/** @type { L1RouteTable<L1RouteBody<T>> } メインのレベル1ルートテーブル */
 		const l1routeTable = new L1RouteTable([
 			{ path: '/page1', name: 'page1' }
 		]);
-		/** @type { L1Router<L1RouteBody<T, R1, R2>, RT, TRE> } メインのレベル1ルータ */
+		// メインのレベル1ルータ
 		const l1router = new L1Router(l1routeTable, createTraceRouteElement, mockObserver);
 
 		const storage = new MemoryHistoryStorage();
-		/** @type { RouteHistory<T, R1, R2, R3, R4> } メインのルータ */
+		// メインのルータ
 		const router = new RouteHistory(l1router, storage);
 
 		expect(router.get('/page2')).toBe(undefined);
@@ -146,15 +146,15 @@ describe('Route', () => {
 	});
 
 	it('取得したルート情報の取得と変更(nameの変更)', () => {
-		/** @type { L1RouteTable<L1RouteBody<T, R1, R2>> } メインのレベル1ルートテーブル */
+		/** @type { L1RouteTable<L1RouteBody<T>> } メインのレベル1ルートテーブル */
 		const l1routeTable = new L1RouteTable([
 			{ path: '/page1', name: 'page1' }
 		]);
-		/** @type { L1Router<L1RouteBody<T, R1, R2>, RT, TRE> } メインのレベル1ルータ */
+		// メインのレベル1ルータ
 		const l1router = new L1Router(l1routeTable, createTraceRouteElement, mockObserver);
 
 		const storage = new MemoryHistoryStorage();
-		/** @type { RouteHistory<T, R1, R2, R3> } メインのルータ */
+		// メインのルータ
 		const router = new RouteHistory(l1router, storage);
 		
 		expect(router.get({ name: 'page2' })).toBe(undefined);

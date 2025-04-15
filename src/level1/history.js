@@ -8,91 +8,58 @@ import { IHistoryStorage } from "./history-storage.js";
  */
 
 /**
- * @template T
- * @typedef { import("./route-table.js").InputRoute<T> } InputRoute ルート解決などの際に引数として入力するルート情報
+ * @typedef { import("./route-table.js").InputRoute } InputRoute ルート解決などの際に引数として入力するルート情報
+ */
+
+/**
+ * @template RT
+ * @typedef { import("./trace-route.js").TraceRouteElement<RT> } TraceRouteElement ルータ型からルート解決の要素の型の取得
+ */
+
+/**
+ * @template RT
+ * @typedef { import("./router.js").DefaultRouter<RT> } DefaultRouter ルータが実際にルーティングをする際に利用するデフォルトのルータ
+ */
+
+/**
+ * @typedef { import("./history-storage.js").RouteHistoryState } RouteHistoryState 履歴操作のためのルートの状態
  */
 
 /**
  * @template T
- * @typedef { import("./history-storage.js").RouteHistoryState<T> } RouteHistoryState 履歴操作のためのルートの状態
- */
-
-/**
- * @template T, RT, TRE, R
- * @typedef { (from: TraceRoute<RT, TRE>?, to: TraceRoute<RT, TRE>) => R } PushHistoryObserver 履歴に対してpush()した際に呼び出すオブザーバ
- */
-
-/**
- * @template T, RT, TRE, R
- * @typedef { (from: TraceRoute<RT, TRE>?, to: TraceRoute<RT, TRE>) => R } ReplaceHistoryObserver 履歴に対してreplace()した際に呼び出すオブザーバ
- */
-
-/**
- * @template T, RT, TRE, R
- * @typedef { (from: TraceRoute<RT, TRE>?, to: TraceRoute<RT, TRE>?, delta: number, realDelta: number) => R } GoHistoryObserver 履歴に対してgo()した際に呼び出すオブザーバ
- */
-
-/**
- * @template T, RT, TRE, R
- * @typedef { (from: TraceRoute<RT, TRE>?, to: TraceRoute<RT, TRE>) => R } TransitionHistoryObserver 履歴に対してtransition()した際に呼び出すオブザーバ
+ * @typedef {{
+ *     beforeEnter?: (from: TraceRoute<DefaultRouter<IRouter<T>>>?, to: TraceRoute<DefaultRouter<IRouter<T>>>?) => undefined | boolean | Promise<undefined | boolean>;
+ *     beforeLeave?: (from: TraceRoute<DefaultRouter<IRouter<T>>>?, to: TraceRoute<DefaultRouter<IRouter<T>>>?) => void;
+ * }} RouteLifecycle ルータに対するライフサイクルフック
  */
 
 /**
  * 履歴操作クラス
- * @template T, RT, TRE, R1, R2, R3, R4
- * @implements { IRouter<T, RT, TRE> }
+ * @template T
+ * @implements { IRouter<T> }
  */
-class RouteHistory {
-	/**
-	 * @type { IRouter<T, RT, TRE> } ルータ
-	 */
+class RouteHistory extends IRouter {
+	/** @type { IRouter<T> } ルータ */
 	#router;
-	/**
-	 * @type { IHistoryStorage<T> } 履歴を管理するストレージ
-	 */
+	/** @type { IHistoryStorage } 履歴を管理するストレージ */
 	#storage;
-	/**
-	 * @type { TraceRoute<RT, TRE>? } 現在のルート情報についての経路
-	 */
+	/** @type { TraceRoute<DefaultRouter<IRouter<T>>>? } 現在のルート情報についての経路 */
 	#currentTraceRoute = null;
-	/**
-	 * @type { RouteHistoryState<T> } 現在のルート情報についての経路
-	 */
+	/** @type { RouteHistoryState } 現在のルート情報についての経路 */
 	#routeHistoryState;
-	/**
-	 * @type { PushHistoryObserver<T, R1> } 履歴に対してpush()した際に呼び出すオブザーバ
-	 */
-	#pushHistoryObserver;
-	/**
-	 * @type { ReplaceHistoryObserver<T, R2> } 履歴に対してreplace()した際に呼び出すオブザーバ
-	 */
-	#replaceHistoryObserver;
-	/**
-	 * @type { GoHistoryObserver<T, R3> } 履歴に対してgo()した際に呼び出すオブザーバ
-	 */
-	#goHistoryObserver;
-	/**
-	 * @type { TransitionHistoryObserver<T, R4> } 履歴に対してtransition()した際に呼び出すオブザーバ
-	 */
-	#transitionHistoryObserver;
+	/** @type { RouteLifecycle<T> } ライフサイクルフック */
+	lifecycle = {};
 
 	/**
 	 * 履歴操作クラスの初期化
-	 * @param { IRouter<T, RT, TRE> } router ルータ
-	 * @param { IHistoryStorage<T> } storage 履歴を管理するストレージ
-	 * @param { PushHistoryObserver<T, RT, TRE, R1> } pushHistoryObserver 履歴に対してpush()した際に呼び出すオブザーバ
-	 * @param { ReplaceHistoryObserver<T, RT, TRE, R2> } replaceHistoryObserver 履歴に対してreplace()した際に呼び出すオブザーバ
-	 * @param { GoHistoryObserver<T, RT, TRE, R3> } goHistoryObserver 履歴に対してgo()した際に呼び出すオブザーバ
-	 * @param { TransitionHistoryObserver<T, RT, TRE, R4> } transitionHistoryObserver 履歴に対してtransition()した際に呼び出すオブザーバ
+	 * @param { IRouter<T> } router ルータ
+	 * @param { IHistoryStorage } storage 履歴を管理するストレージ
 	 */
-	constructor(router, storage, pushHistoryObserver = (from, to) => {}, replaceHistoryObserver = (from, to) => {}, goHistoryObserver = (from, to) => {}, transitionHistoryObserver = (from, to) => {}) {
+	constructor(router, storage) {
+		super();
 		this.#router = router;
 		this.#storage = storage;
 		this.#routeHistoryState = this.#storage.state;
-		this.#pushHistoryObserver = pushHistoryObserver;
-		this.#replaceHistoryObserver = replaceHistoryObserver;
-		this.#goHistoryObserver = goHistoryObserver;
-		this.#transitionHistoryObserver = transitionHistoryObserver;
 	}
 
 	/**
@@ -105,68 +72,91 @@ class RouteHistory {
 	/**
 	 * 現在のルート解決に用いた経路の取得
 	 */
-	/* istanbul ignore next */
 	get current() { return this.#currentTraceRoute.clone(); }
 
 	/**
-	 * 履歴にルートを追加する
-	 * @param { InputRoute<T> | TraceRoute<RT, TRE> } route 履歴に追加するルート情報
-	 * @returns { R1 }
+	 * ライフサイクルフックを発火する
+	 * @param { TraceRoute<DefaultRouter<IRouter<T>>>? } from 遷移元のルート解決の経路
+	 * @param { TraceRoute<DefaultRouter<IRouter<T>>>? } to 遷移先のルート解決の経路
+	 * @return { Promise<boolean> }
 	 */
-	push(route) {
-		/** @type { TraceRoute<RT, TRE> } */
-		const to = route instanceof TraceRoute ? route : this.routing(route);
+	async #callLifecycle(from, to) {
+		if (from && from.routes.length !== 0) {
+			this.lifecycle.beforeLeave?.(from, to && to.routes.length !== 0 ? to : null);
+		}
+		if (to && to.routes.length !== 0) {
+			const ret = this.lifecycle.beforeEnter?.(from && from.routes.length !== 0 ? from : null, to);
+			return (ret instanceof Promise ? await ret : ret) !== false;
+		}
+		return true;
+	}
+
+	/**
+	 * 履歴にルートを追加する
+	 * @param { InputRoute } route 履歴に追加するルート情報
+	 * @returns { Promise<boolean> }
+	 */
+	async push(route) {
+		const to = this.routing(route);
 		const from = this.#currentTraceRoute;
-		this.#routeHistoryState = this.#storage.push(
-			route instanceof TraceRoute ? route?.path ?? route.routes[route.routes.length - 1].route : route
-		);
+		if (!await this.#callLifecycle(from, to)) {
+			return false;
+		}
+		this.#routeHistoryState = await this.#storage.push(to.path ?? route);
 		this.#currentTraceRoute = to;
-		return this.#pushHistoryObserver(from, to);
+		return true;
 	}
 
 	/**
 	 * 履歴にルートを置き換える
-	 * @param { InputRoute<T> | TraceRoute<RT, TRE> } route 履歴に置き換えるルート情報
-	 * @returns { R2 }
+	 * @param { InputRoute } route 履歴に置き換えるルート情報
+	 * @returns { Promise<boolean> }
 	 */
-	replace(route) {
-		/** @type { TraceRoute<RT, TRE> } */
-		const to = route instanceof TraceRoute ? route : this.routing(route);
+	async replace(route) {
+		const to = this.routing(route);
 		const from = this.#currentTraceRoute;
-		this.#routeHistoryState = this.#storage.replace(
-			route instanceof TraceRoute ? route?.path ?? route.routes[route.routes.length - 1].route : route
-		);
+		if (!await this.#callLifecycle(from, to)) {
+			return false;
+		}
+		this.#routeHistoryState = await this.#storage.replace(to.path ?? route);
 		this.#currentTraceRoute = to;
-		return this.#replaceHistoryObserver(from, to);
+		return true;
 	}
 
 	/**
 	 * 現在位置を起点とした履歴の移動
 	 * @param { number } delta 移動先の相対位置
-	 * @returns { Promise<R3> }
+	 * @returns { Promise<boolean> }
 	 */
-	go(delta) {
-		return this.#storage.go(delta).then(state => {
-			const realDelta = state.id - this.#routeHistoryState.id;
-			this.#routeHistoryState = state;
-			if (state.route !== null) {
-				const to = this.routing(state.route);
-				const from = this.#currentTraceRoute;
+	async go(delta) {
+		const state = await this.#storage.go(delta);
+		const realDelta = state.id - this.#routeHistoryState.id;
+		this.#routeHistoryState = state;
+		if (state.route !== null) {
+			const to = this.routing(state.route);
+			const from = this.#currentTraceRoute;
+			if (await this.#callLifecycle(from, to)) {
 				this.#currentTraceRoute = to;
-				return this.#goHistoryObserver(from, to, delta, realDelta);
+				return true;
 			}
-			else {
-				// ルート情報がないときはそのままオブザーバへ渡す
-				const from = this.#currentTraceRoute;
+		}
+		else {
+			// ルート情報がないときはそのままオブザーバへ渡す
+			const from = this.#currentTraceRoute;
+			if (await this.#callLifecycle(from, null)) {
 				this.#currentTraceRoute = null;
-				return this.#goHistoryObserver(from, null, delta, realDelta);
+				return true;
 			}
-		});
+		}
+
+		// 履歴を元に戻す
+		this.#routeHistoryState = await this.#storage.go(-realDelta);
+		return false;
 	}
 
 	/**
 	 * 現在位置を起点とした直前の履歴へ移動
-	 * @returns { Promise<R3> }
+	 * @returns { Promise<boolean> }
 	 */
 	back() {
 		return this.go(-1);
@@ -174,7 +164,7 @@ class RouteHistory {
 
 	/**
 	 * 現在位置を起点とした直後の履歴へ移動
-	 * @returns { Promise<R3> }
+	 * @returns { Promise<boolean> }
 	 */
 	forward() {
 		return this.go(1);
@@ -182,45 +172,55 @@ class RouteHistory {
 
 	/**
 	 * 履歴の操作なしで移動を行う
-	 * @param { InputRoute<T> | TraceRoute<RT, TRE> } route 移動先のルート情報
-	 * @returns { R4 }
+	 * @param { InputRoute | TraceRoute<DefaultRouter<IRouter<T>>> } route 移動先のルート情報
+	 * @returns { Promise<boolean> }
 	 */
-	transition(route) {
-		/** @type { TraceRoute<RT, TRE> } */
+	async transition(route) {
 		const to = route instanceof TraceRoute ? route : this.routing(route);
 		const from = this.#currentTraceRoute;
+		if (!(await this.#callLifecycle(from, to))) {
+			return false;
+		}
 		this.#currentTraceRoute = to;
-		return this.#transitionHistoryObserver(from, to);
+		return true;
 	}
 
 	/**
 	 * 外部からのストレージの変更を通知(pushやreplaceの検知は実施しない)
-	 * @returns { Promise<R3>? }
+	 * @returns { Promise<boolean> }
 	 */
-	notify() {
+	async notify() {
 		const delta = this.#storage.state.id - this.#routeHistoryState.id;
 		if (delta !== 0) {
 			this.#routeHistoryState = this.#storage.state;
 			if (this.#storage.state.route !== null) {
 				const to = this.#router.routing(this.#storage.state.route);
 				const from = this.#currentTraceRoute;
-				this.#currentTraceRoute = to;
-				return this.#goHistoryObserver(from, to, delta, delta);
+				if (await this.#callLifecycle(from, to)) {
+					this.#currentTraceRoute = to;
+					return true;
+				}
 			}
 			else {
 				const from = this.#currentTraceRoute;
-				this.#currentTraceRoute = null;
-				return this.#goHistoryObserver(from, null, delta, delta);
+				if (await this.#callLifecycle(from, null)) {
+					this.#currentTraceRoute = null;
+					return true;
+				}
 			}
+
+			// 履歴を元に戻す
+			this.#routeHistoryState = await this.#storage.go(-delta);
+			return false;
 		}
-		return null;
+		return true;
 	}
 
 	/**
 	 * ルーティングの実施
-	 * @param { InputRoute<T> } route 遷移先のルート情報
-	 * @param {  TraceRoute<RT, TRE> } trace 現時点でのルート解決の経路
-	 * @return { TraceRoute<RT, TRE> } ルート解決の経路
+	 * @param { InputRoute } route 遷移先のルート情報
+	 * @param {  TraceRoute<DefaultRouter<IRouter<T>>> } trace 現時点でのルート解決の経路
+	 * @return { TraceRoute<DefaultRouter<IRouter<T>>> } ルート解決の経路
 	 */
 	routing(route, trace = new TraceRoute()) {
 		return this.#router.routing(route, trace);
