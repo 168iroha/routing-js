@@ -2,7 +2,7 @@
 import { IRouteTable } from '../../../src/level1/route-table.js';
 import { TraceRoute } from '../../../src/level1/trace-route.js';
 import { createTraceRouteElement, Router } from '../../../src/level1/router.js';
-import { jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 
 /**
  * @template T

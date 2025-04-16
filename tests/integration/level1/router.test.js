@@ -1,6 +1,6 @@
 import { RouteTable } from '../../../src/level1/route-table.js';
 import { createTraceRouteElement, Router } from '../../../src/level1/router.js';
-import { jest } from '@jest/globals';
+import { describe, it, expect, jest } from '@jest/globals';
 
 /**
  * @template T

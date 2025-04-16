@@ -2,7 +2,7 @@ import { RouteTable as L1RouteTable } from '../../../src/level1/route-table.js';
 import { Router as L1Router } from '../../../src/level1/router.js';
 import { MemoryHistoryStorage } from '../../../src/level1/history-storage.js';
 import { createTraceRouteElement, Router, RouteHistory } from '../../../src/level2/router.js';
-import { jest } from '@jest/globals';
+import { describe, it, expect, jest } from '@jest/globals';
 
 /**
  * @template T

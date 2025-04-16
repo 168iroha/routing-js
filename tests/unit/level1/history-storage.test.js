@@ -1,5 +1,6 @@
 /** @jest-environment jsdom */
 import { BrowserHistoryStorage, MemoryHistoryStorage } from '../../../src/level1/history-storage.js';
+import { describe, it, expect, beforeEach } from '@jest/globals';
 
 describe('BrowserHistoryStorage', () => {
 	beforeEach(() => {

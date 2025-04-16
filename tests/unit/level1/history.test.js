@@ -3,7 +3,7 @@ import { TraceRoute } from "../../../src/level1/trace-route.js";
 import { IRouteTable } from "../../../src/level1/route-table.js";
 import { MemoryHistoryStorage } from '../../../src/level1/history-storage.js';
 import { RouteHistory } from '../../../src/level1/history.js';
-import { jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 
 /**
  * @template T

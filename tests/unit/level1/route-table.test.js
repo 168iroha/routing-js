@@ -1,6 +1,6 @@
 
 import { mergeParams, createPathArray, RouteTable } from '../../../src/level1/route-table.js';
-import { jest } from '@jest/globals';
+import { describe, it, expect, jest } from '@jest/globals';
 
 describe('mergeParams', () => {
 	it('空に対して文字列パラメータのマージ', () => {
