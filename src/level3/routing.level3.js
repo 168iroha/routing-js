@@ -1,7 +1,8 @@
 import { RouteTable as L1RouteTable } from "../level1/route-table.js";
+import { IHistoryStorage } from "../level1/history-storage.js";
 import { Router as L1Router } from "../level1/router.js";
 import { TraceRoute } from "../level1/trace-route.js";
-import { Route as L2Route, ResolveRoute as L2ResolveRoute } from "../level2/route.js";
+import { Route as L2Route } from "../level2/route.js";
 import { createTraceRouteElement, ARouter as L2ARouter, Router as L2Router, RouteHistory as L2RouteHistory } from "../level2/router.js";
 
 /**
@@ -10,18 +11,8 @@ import { createTraceRouteElement, ARouter as L2ARouter, Router as L2Router, Rout
  */
 
 /**
- * @template T, R1, R2
- * @typedef { import("../level2/route.js").L1RouteBody<T, R1, R2> } L1RouteBody ルート情報のボディ
- */
-
-/**
- * @template T, R1, R2
- * @typedef { import("../level2/router.js").HistoryStorage<T, R1, R2> } L2HistoryStorage 履歴のストレージ
- */
-
-/**
- * @template R, E
- * @typedef { import("../level1/trace-route.js").TraceRoute<R, E> } TraceRoute ルート解決の経路
+ * @template T
+ * @typedef { import("../level2/route.js").L1RouteBody<T> } L1RouteBody ルート情報のボディ
  */
 
 /**
@@ -30,32 +21,17 @@ import { createTraceRouteElement, ARouter as L2ARouter, Router as L2Router, Rout
 
 /**
  * @template T
- * @typedef { L2Route<T, Promise<boolean>, Promise<boolean>> } Route ルート情報クラス
+ * @typedef { L2Route<T> } Route ルート情報クラス
  */
 
 /**
  * @template T
- * @typedef { L2ResolveRoute<T, Promise<boolean>, Promise<boolean>> } ResolveRoute Router.get()などにより取得するルート情報クラス
+ * @typedef { L2ARouter<T> } ARouter ルータの抽象クラス
  */
 
 /**
  * @template T
- * @typedef { L2ARouter<T, Promise<boolean>, Promise<boolean>> } ARouter ルータの抽象クラス
- */
-
-/**
- * @template T
- * @typedef { L2Router<T, Promise<boolean>, Promise<boolean>> } Router ルータクラス
- */
-
-/**
- * @template T
- * @typedef { L2RouteHistory<T, Promise<boolean>, Promise<boolean>, Promise<boolean>, Promise<boolean>> } RouteHistory 履歴操作クラス
- */
-
-/**
- * @template T
- * @typedef { L2HistoryStorage<T, Promise<boolean>, Promise<boolean>> } HistoryStorage 履歴のストレージ
+ * @typedef { L2Router<T> } Router ルータクラス
  */
 
  /**
@@ -84,41 +60,11 @@ import { createTraceRouteElement, ARouter as L2ARouter, Router as L2Router, Rout
   * })} JSONRoute JSON形式のルート情報
   */
 
-const eachCallbackObj = (function () {
-    /** @type { ((from: TraceRoute<R, E>?, to: TraceRoute<R, E>?) => unknown)? } */
-    let beforeEachCallback = null;
-    /** @type { ((from: TraceRoute<R, E>?, to: TraceRoute<R, E>?) => unknown)? } */
-    let afterEachCallback = null;
-
-    /**
-     * afterEachライフサイクルフックのコールバックを設定
-     * @param { ((from: TraceRoute<R, E>?, to: TraceRoute<R, E>?) => unknown)? } callback 
-     */
-    const beforeEach = (callback) => {
-        beforeEachCallback = callback;
-    }
-    /**
-     * afterEachライフサイクルフックのコールバックを設定
-     * @param { ((from: TraceRoute<R, E>?, to: TraceRoute<R, E>?) => unknown)? } callback 
-     */
-    const afterEach = (callback) => {
-        afterEachCallback = callback;
-    }
-
-    return {
-        beforeEach,
-        afterEach,
-        beforeEachCallback: /** @type { ((from: TraceRoute<R, E>?, to: TraceRoute<R, E>?) => unknown)? } */(beforeEachCallback),
-        afterEachCallback: /** @type { ((from: TraceRoute<R, E>?, to: TraceRoute<R, E>?) => unknown)? } */(afterEachCallback)
-    };
-})();
-const { beforeEach, afterEach } = eachCallbackObj;
-
 /**
  * ルータについてオブザーバ
- * @template T, R1, R2
- * @param { L1Route<L1RouteBody<T, R1, R2>> | undefined } route ルート解決したルート情報
- * @param { TraceRoute<L2ARouter<T, R1, R2>, L2ResolveRoute<T, R1, R2>> } trace 現在までの経路
+ * @template T
+ * @param { L1Route<L1RouteBody<T>> | undefined } route ルート解決したルート情報
+ * @param { TraceRoute<L2ARouter<T>> } trace 現在までの経路
  */
 function routerObserver(route, trace) {
     // リダイレクト・フォワードが設定されていれば即時終了
@@ -147,83 +93,13 @@ function routerObserver(route, trace) {
 }
 
 /**
- * 履歴についてオブザーバ
- * @template T
- * @param { TraceRoute<ARouter<T>, ResolveRoute<T>>? } from 遷移元のルート解決の経路
- * @param { TraceRoute<ARouter<T>, ResolveRoute<T>>? } to 遷移先のルート解決の経路
- */
-async function historyObserver(from, to) {
-    if (await eachCallbackObj.beforeEachCallback?.(from, to) === false) {
-        return false;
-    }
-
-    if (from && to) {
-        const fromRoute = from.routes[from.routes.length - 1];
-        const toRoute = to.routes[to.routes.length - 1];
-        // 同一ルートのときのみupdateを実施する
-        if (fromRoute.l1route.body.router === toRoute.l1route.body.router && fromRoute.lifecycle === toRoute.lifecycle) {
-            // 任意情報を引き継ぐ
-            toRoute.any = fromRoute.any;
-            // update
-            await fromRoute.l1route.body.router.lifecycle.beforeRouteUpdate?.(fromRoute, toRoute);
-            await fromRoute.lifecycle.beforeRouteUpdate?.(fromRoute, toRoute);
-            await fromRoute.l1route.body.router.lifecycle.routeUpdate?.(fromRoute, toRoute);
-            await fromRoute.lifecycle.routeUpdate?.(fromRoute, toRoute);
-            await fromRoute.l1route.body.router.lifecycle.afterRouteUpdate?.(fromRoute, toRoute);
-            await fromRoute.lifecycle.afterRouteUpdate?.(fromRoute, toRoute);
-        }
-        else {
-            // leave
-            await fromRoute.l1route.body.router.lifecycle.beforeRouteLeave?.(fromRoute, toRoute);
-            await fromRoute.lifecycle?.beforeRouteLeave?.(fromRoute, toRoute);
-            await fromRoute.l1route.body.router.lifecycle.routeLeave?.(fromRoute, toRoute);
-            await fromRoute.lifecycle?.routeLeave?.(fromRoute, toRoute);
-            await fromRoute.l1route.body.router.lifecycle.afterRouteLeave?.(fromRoute, toRoute);
-            await fromRoute.lifecycle?.afterRouteLeave?.(fromRoute, toRoute);
-            // enter
-            await toRoute.l1route.body.router.lifecycle.beforeRouteEnter?.(fromRoute, toRoute);
-            await toRoute.lifecycle?.beforeRouteEnter?.(fromRoute, toRoute);
-            await toRoute.l1route.body.router.lifecycle.routeEnter?.(fromRoute, toRoute);
-            await toRoute.lifecycle?.routeEnter?.(fromRoute, toRoute);
-            await toRoute.l1route.body.router.lifecycle.afterRouteEnter?.(fromRoute, toRoute);
-            await toRoute.lifecycle?.afterRouteEnter?.(fromRoute, toRoute);
-        }
-    }
-    else if (from) {
-        const fromRoute = from.routes[from.routes.length - 1];
-        // leave
-        await fromRoute.l1route.body.router.lifecycle.beforeRouteLeave?.(fromRoute, null);
-        await fromRoute.lifecycle?.beforeRouteLeave?.(fromRoute, null);
-        await fromRoute.l1route.body.router.lifecycle.routeLeave?.(fromRoute, null);
-        await fromRoute.lifecycle?.routeLeave?.(fromRoute, null);
-        await fromRoute.l1route.body.router.lifecycle.afterRouteLeave?.(fromRoute, null);
-        await fromRoute.lifecycle?.afterRouteLeave?.(fromRoute, null);
-    }
-    else if (to) {
-        const toRoute = to.routes[to.routes.length - 1];
-        // enter
-        await toRoute.l1route.body.router.lifecycle.beforeRouteEnter?.(null, toRoute);
-        await toRoute.lifecycle?.beforeRouteEnter?.(null, toRoute);
-        await toRoute.l1route.body.router.lifecycle.routeEnter?.(null, toRoute);
-        await toRoute.lifecycle?.routeEnter?.(null, toRoute);
-        await toRoute.l1route.body.router.lifecycle.afterRouteEnter?.(null, toRoute);
-        await toRoute.lifecycle?.afterRouteEnter?.(null, toRoute);
-    }
-
-    if (await eachCallbackObj?.afterEachCallback?.(from, to) === false) {
-        return false;
-    }
-    return true;
-}
-
-/**
  * ルータを作成する
  * @template T
- * @param { Route<T> | HistoryStorage<T> } obj ルート解決のベースとなるルート | 履歴を管理するストレージ
+ * @param { Route<T> | IHistoryStorage } obj ルート解決のベースとなるルート | 履歴を管理するストレージ
  * @returns { ARouter<T> }
  */
 function createRouter(obj) {
-    /** @type { L1Router<L1RouteBody<T, Promise<boolean>, Promise<boolean>>, ARouter<T>, ResolveRoute<T>> } */
+    /** @type { L1Router<L1RouteBody<T>> } */
     const l1Router = new L1Router(new L1RouteTable(), createTraceRouteElement, routerObserver);
 
     // 引数のパターンに応じたルータを返す
@@ -231,7 +107,7 @@ function createRouter(obj) {
         return new L2Router(l1Router, obj);
     }
     else {
-        return new L2RouteHistory(l1Router, obj, historyObserver, historyObserver, historyObserver, historyObserver);
+        return new L2RouteHistory(l1Router, obj);
     }
 }
 
@@ -344,4 +220,4 @@ function loadJSONRouteList(router, jsonRouteList, size = jsonRouteList.length) {
     return ret;
 }
 
-export { createRouter, beforeEach, afterEach, loadJSONRouteList };
+export { createRouter, loadJSONRouteList };

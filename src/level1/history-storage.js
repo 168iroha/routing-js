@@ -4,52 +4,48 @@
  */
 
 /**
- * @template T
- * @typedef { import("./route-table.js").InputRoute<T> } InputRoute ルート解決などの際に引数として入力するルート情報
+ * @typedef { import("./route-table.js").InputRoute } InputRoute ルート解決などの際に引数として入力するルート情報
  */
 
 /**
- * @template T
- * @typedef { { id: number; route: (string | Route<T>)? } } RouteHistoryState 履歴操作のためのルートの状態
+ * @typedef { { id: number; route: InputRoute? } } RouteHistoryState 履歴操作のためのルートの状態
  */
 
 /**
  * 履歴のストレージのインターフェース
- * @template T
  * @interface
  */
 /* istanbul ignore next */
 class IHistoryStorage {
 	/**
 	 * 履歴にルートを追加する
-	 * @param { InputRoute<T> } route 履歴に追加するルート情報
-	 * @returns { RouteHistoryState<T> } 移動先のルート
+	 * @param { InputRoute } route 履歴に追加するルート情報
+	 * @returns { Promise<RouteHistoryState> } 移動先のルート
 	 */
 	push(route) { throw new Error('not implemented.'); }
 	/**
 	 * 履歴にルートを置き換える
-	 * @param { InputRoute<T> } route 履歴に置き換えるルート情報
-	 * @returns { RouteHistoryState<T> } 移動先のルート
+	 * @param { InputRoute } route 履歴に置き換えるルート情報
+	 * @returns { Promise<RouteHistoryState> } 移動先のルート
 	 */
 	replace(route) { throw new Error('not implemented.'); }
 	/**
 	 * 現在位置を起点とした履歴の移動
 	 * @param { number } delta 移動先の相対位置
-	 * @returns { Promise<RouteHistoryState<T>> } 移動先のルート
+	 * @returns { Promise<RouteHistoryState> } 移動先のルート
 	 */
 	go(delta) { throw new Error('not implemented.'); }
 
 	/**
 	 * カレントの取得
-	 * @returns { RouteHistoryState<T> } カレントのルート
+	 * @returns { RouteHistoryState } カレントのルート
 	 */
 	get state() { throw new Error('not implemented.'); }
 }
 
 /**
  * History APIによる履歴のストレージ
- * @template T
- * @implements { IHistoryStorage<T> }
+ * @implements { IHistoryStorage }
  */
 class BrowserHistoryStorage {
 	/**
@@ -57,7 +53,7 @@ class BrowserHistoryStorage {
 	 */
 	#history;
 	/**
-	 * @type { (route: InputRoute<T>) => string | URL } ルート情報からHistory APIで利用するURLを生成する関数
+	 * @type { (route: InputRoute) => string | URL } ルート情報からHistory APIで利用するURLを生成する関数
 	 */
 	#makeUrl;
 	/**
@@ -69,7 +65,7 @@ class BrowserHistoryStorage {
 	 */
 	#length = 0;
 	/**
-	 * @type { { id: number; resolve: (value: RouteHistoryState<T>) => void }[] } go()の解決を管理するキュー
+	 * @type { { id: number; resolve: (value: RouteHistoryState) => void }[] } go()の解決を管理するキュー
 	 */
 	#stateQueue = [];
 	/**
@@ -80,7 +76,7 @@ class BrowserHistoryStorage {
 	/**
 	 * History APIによる履歴のストレージの初期化
 	 * @param { History } history 履歴情報
-	 * @param { (route: InputRoute<T>) => string } makeUrl ルート情報からHistory APIで利用するURLを生成する関数
+	 * @param { (route: InputRoute) => string } makeUrl ルート情報からHistory APIで利用するURLを生成する関数
 	 */
 	constructor(history, makeUrl = route => `${route.path ?? route.name ?? route}`, timeout = 100) {
 		this.#history = history;
@@ -107,28 +103,28 @@ class BrowserHistoryStorage {
 
 	/**
 	 * 履歴にルートを追加する
-	 * @param { InputRoute<T> } route 履歴に追加するルート情報
-	 * @returns { RouteHistoryState<T> } 移動先のルート
+	 * @param { InputRoute } route 履歴に追加するルート情報
+	 * @returns { Promise<RouteHistoryState> } 移動先のルート
 	 */
 	push(route) {
 		++this.#currentPos;
 		this.#length = this.#currentPos + 1;
 		this.#history.pushState({ id: this.#currentPos, route }, '', this.#makeUrl(route));
-		return this.state;
+		return Promise.resolve(this.state);
 	}
 	/**
 	 * 履歴にルートを置き換える
-	 * @param { InputRoute<T> } route 履歴に置き換えるルート情報
-	 * @returns { RouteHistoryState<T> } 移動先のルート
+	 * @param { InputRoute } route 履歴に置き換えるルート情報
+	 * @returns { Promise<RouteHistoryState> } 移動先のルート
 	 */
 	replace(route) {
 		this.#history.replaceState({ id: this.#currentPos, route }, '', this.#makeUrl(route));
-		return this.state;
+		return Promise.resolve(this.state);
 	}
 	/**
 	 * 現在位置を起点とした履歴の移動
 	 * @param { number } delta 移動先の相対位置
-	 * @returns { Promise<RouteHistoryState<T>> } 移動先のルート
+	 * @returns { Promise<RouteHistoryState> } 移動先のルート
 	 */
 	go(delta) {
 		// go()についてのタスクのpushする
@@ -176,7 +172,7 @@ class BrowserHistoryStorage {
 
 	/**
 	 * カレントの取得
-	 * @returns { RouteHistoryState<T> } カレントのルート
+	 * @returns { RouteHistoryState } カレントのルート
 	 */
 	get state() {
 		return this.#history.state;
@@ -185,12 +181,11 @@ class BrowserHistoryStorage {
 
 /**
  * メモリ上で管理する履歴のストレージ
- * @template T
- * @implements { IHistoryStorage<T> }
+ * @implements { IHistoryStorage }
  */
 class MemoryHistoryStorage {
 	/**
-	 * @type { RouteHistoryState<T>[] } 履歴情報
+	 * @type { RouteHistoryState[] } 履歴情報
 	 */
 	#historyStack = [{ id: 0, route: null }];
 	/**
@@ -200,28 +195,28 @@ class MemoryHistoryStorage {
 
 	/**
 	 * 履歴にルートを追加する
-	 * @param { InputRoute<T> } route 履歴に追加するルート情報
-	 * @returns { RouteHistoryState<T> } 移動先のルート
+	 * @param { InputRoute } route 履歴に追加するルート情報
+	 * @returns { Promise<RouteHistoryState> } 移動先のルート
 	 */
 	push(route) {
 		// this.#currentPos以降の要素を削除して挿入
 		++this.#currentPos;
 		this.#historyStack.splice(this.#currentPos, this.#historyStack.length, { id: this.#currentPos, route });
-		return this.state;
+		return Promise.resolve(this.state);
 	}
 	/**
 	 * 履歴にルートを置き換える
-	 * @param { InputRoute<T> } route 履歴に置き換えるルート情報
-	 * @returns { RouteHistoryState<T> } 移動先のルート
+	 * @param { InputRoute } route 履歴に置き換えるルート情報
+	 * @returns { Promise<RouteHistoryState> } 移動先のルート
 	 */
 	replace(route) {
 		this.#historyStack.splice(this.#currentPos, 1, { id: this.#currentPos, route });
-		return this.state;
+		return Promise.resolve(this.state);
 	}
 	/**
 	 * 現在位置を起点とした履歴の移動
 	 * @param { number } delta 移動先の相対位置
-	 * @returns { Promise<RouteHistoryState<T>> } 移動先のルート
+	 * @returns { Promise<RouteHistoryState> } 移動先のルート
 	 */
 	go(delta) {
 		// clamp
@@ -231,7 +226,7 @@ class MemoryHistoryStorage {
 
 	/**
 	 * カレントの取得
-	 * @returns { RouteHistoryState<T> } カレントのルート
+	 * @returns { RouteHistoryState } カレントのルート
 	 */
 	get state() {
 		return this.#historyStack[this.#currentPos];

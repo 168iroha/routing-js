@@ -17,44 +17,38 @@ import { ARouter } from "./router.js";
  */
 
 /**
- * @template T, R1, R2
+ * @template T
  * @typedef {{
- *     beforeRouteEnter?: (from: Route<T, R1, R2>?, to: Route<T, R1, R2>?) => unknown;
- *     afterRouteEnter?: (from: Route<T, R1, R2>?, to: Route<T, R1, R2>?) => unknown;
- *     beforeRouteLeave?: (from: Route<T, R1, R2>?, to: Route<T, R1, R2>?) => unknown;
- *     afterRouteLeave?: (from: Route<T, R1, R2>?, to: Route<T, R1, R2>?) => unknown;
- *     beforeRouteUpdate?: (from: Route<T, R1, R2>?, to: Route<T, R1, R2>?) => unknown;
- *     afterRouteUpdate?: (from: Route<T, R1, R2>?, to: Route<T, R1, R2>?) => unknown;
- *     routeEnter?: (from: Route<T, R1, R2>?, to: Route<T, R1, R2>?) => unknown;
- *     routeLeave?: (from: Route<T, R1, R2>?, to: Route<T, R1, R2>?) => unknown;
- *     routeUpdate?: (from: Route<T, R1, R2>?, to: Route<T, R1, R2>?) => unknown;
- *     routing?: (trace: TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>>) => TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>> | undefined;
+ *     beforeEnter?: (from: Route<T>?, to: Route<T>?) => undefined | boolean | Promise<undefined | boolean>;
+ *     beforeLeave?: (from: Route<T>?, to: Route<T>?) => void;
+ *     beforeUpdate?: (from: Route<T>?, to: Route<T>?) => undefined | boolean | Promise<undefined | boolean>;
+ *     routing?: (trace: TraceRoute<ARouter<T>>) => TraceRoute<ARouter<T>> | undefined;
  * }} RouteLifecycle ルート情報に対するライフサイクルフック
  */
 
 /**
- * @template T, R1, R2
+ * @template T
  * @typedef {{
- * 		readonly router: ARouter<T, R1, R2>;
- * 		readonly route: Route<T, R1, R2>;
- * 		nexthop?: ARouter<T, R1, R2>;
- *		lifecycle: RouteLifecycle<T, R1, R2>;
- *		navigate?: { type: 'redirect' | 'forward'; route: Route<T, R1, R2>; map?: (params: L1RouteParams) => L1RouteParams; };
+ * 		readonly router: ARouter<T>;
+ * 		readonly route: Route<T>;
+ * 		nexthop?: ARouter<T>;
+ *		lifecycle: RouteLifecycle<T>;
+ *		navigate?: { type: 'redirect' | 'forward'; route: Route<T>; map?: (params: L1RouteParams) => L1RouteParams; };
  * 		body?: T;
  * }} L1RouteBody レベル1におけるルート情報のボディ
  */
 
 /**
  * ルート情報クラス
- * @template T, R1, R2
+ * @template T
  */
 class Route {
-	/** @type { L1Route<L1RouteBody<T, R1, R2>> } レベル1のルート情報 */
+	/** @type { L1Route<L1RouteBody<T>> } レベル1のルート情報 */
 	#route;
 
 	/**
 	 * ルート情報の初期化
-	 * @param { L1Route<L1RouteBody<T, R1, R2>> } route レベル1のルート情報
+	 * @param { L1Route<L1RouteBody<T>> } route レベル1のルート情報
 	 */
 	constructor(route) {
 		this.#route = route;
@@ -156,7 +150,7 @@ class Route {
 	 */
 	set relative(path) {
 		const p = path instanceof RoutePath ? path.toString() : path;
-		this.l1route.body?.router.l1router.routeTable.replace(this.l1route, p);
+		this.l1route.body?.router?.l1router?.routeTable?.replace?.(this.l1route, p);
 	}
 
 	/**
@@ -171,48 +165,48 @@ class Route {
 	 * @param { string | undefined } ルートの名称
 	 */
 	set name(name) {
-		this.l1route.body?.router.l1router.routeTable.replace(this.l1route, { name });
+		this.l1route.body?.router?.l1router?.routeTable?.replace?.(this.l1route, { name });
 	}
 
 	/**
 	 * 履歴にルートを追加する
 	 * @param { L1RouteParams } params ルートにディスパッチするパラメータ
-	 * @returns { R1 }
+	 * @returns { Promise<boolean> }
 	 */
 	push(params = {}) {
-		return this.#route.body.router.base.push(this.path.dispatch(params).toString());
+		return this.#route.body?.router?.base?.push?.(this.path.dispatch(params).toString());
 	}
 
 	/**
 	 * 履歴にルートを置き換える
 	 * @param { L1RouteParams } params ルートにディスパッチするパラメータ
-	 * @returns { R2 }
+	 * @returns { Promise<boolean> }
 	 */
 	replace(params = {}) {
-		return this.#route.body.router.base.replace(this.path.dispatch(params).toString());
+		return this.#route.body?.router?.base?.replace?.(this.path.dispatch(params).toString());
 	}
 
 	/**
 	 * 履歴の操作なしで移動を行う
 	 * @param { L1RouteParams } params ルートにディスパッチするパラメータ
-	 * @returns { R4 }
+	 * @returns { Promise<boolean> }
 	 */
 	transition(params = {}) {
-		return this.#route.body.router.base.transition(this.path.dispatch(params).toString());
+		return this.#route.body?.router?.base?.transition?.(this.path.dispatch(params).toString());
 	}
 
 	/**
 	 * ルーティングの実施
 	 * @param { L1RouteParams } params ルートにバインドするパラメータ
-	 * @return { TraceRoute<ARouter<T, R1, R2>, ResolveRoute<T, R1, R2>> } ルート解決の経路
+	 * @return { TraceRoute<ARouter<T>> } ルート解決の経路
 	 */
 	routing(params = {}) {
-		return this.#route.body.router.base.routing(this.path.dispatch(params).toString());
+		return this.#route.body?.router?.base?.routing?.(this.path.dispatch(params).toString());
 	}
 
 	/**
 	 * 引数に渡されたコールバック関数を呼び出す
-	 * @param { (val: L1RouteBody<T, R1, R2>) => unknown } callback 呼びだすコールバック関数
+	 * @param { (val: L1RouteBody<T>) => unknown } callback 呼びだすコールバック関数
 	 * @returns this
 	 */
 	/* istanbul ignore next */
@@ -227,8 +221,8 @@ class Route {
 
 /**
  * Router.get()などにより取得するルート情報クラス
- * @template T, R1, R2
- * @extends { Route<T, R1, R2> }
+ * @template T
+ * @extends { Route<T> }
  */
 class ResolveRoute extends Route {
 	/** @type { L1RouteParams | undefined } ディレクトリパラメータ */
@@ -242,10 +236,10 @@ class ResolveRoute extends Route {
 
 	/**
 	 * ルート情報の初期化
-	 * @param { L1ResolveRoute<L1RouteBody<T, R1, R2>> } route レベル1のルート情報
+	 * @param { L1ResolveRoute<L1RouteBody<T>> } route レベル1のルート情報
 	 */
 	constructor(route) {
-		super(route.body?.route.l1route);
+		super(route.body?.route?.l1route);
 		this.params = route.params;
 		this.search = route.search;
 		this.rest = route.rest;

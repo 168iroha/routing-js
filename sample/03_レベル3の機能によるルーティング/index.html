@@ -25,13 +25,13 @@
 				{ path: '/page2', body: { text: 'Page2の表示', order: 3 } }
 			];
 			loadJSONRouteList(router, routeTable);
-			router.lifecycle.routeLeave = (from, to) => view.removeChild(from.any);
-			router.lifecycle.routeEnter = (from, to) => {
+			router.lifecycle.beforeEnter = (from, to) => {
 				const content = document.createElement('div');
 				content.textContent = `Show '${to.path}'`;
 				view.appendChild(content);
 				to.any = content;
 			};
+			router.lifecycle.beforeLeave = (from, to) => { view.removeChild(from.any); };
 
 			window.addEventListener('popstate', e => {
 				const state = e.state;

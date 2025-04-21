@@ -3,18 +3,20 @@
  */
 
 /**
- * @template T
  * @typedef {{
- *		body?: T;
  *		segment?: boolean;
  *		path: string;
  *		name?: string;
  * } | {
- *		body?: T;
  *		segment?: boolean;
  *		path?: string;
  *		name: string;
- * }} Route ルート情報
+ * }} NoBodyRoute ボディなしのルート情報
+ */
+
+/**
+ * @template T
+ * @typedef { { body?: T; } & NoBodyRoute } Route ルート情報
  */
 
 /**
@@ -27,8 +29,7 @@
  */
 
 /**
- * @template T
- * @typedef { Route<T> | string } InputRoute ルート解決などの際に引数として入力するルート情報
+ * @typedef { NoBodyRoute | string } InputRoute ルート解決などの際に引数として入力するルート情報
  */
 
 /**
@@ -95,29 +96,29 @@
 class IRouteTable {
 	/**
 	 * ルートの置換を行う
-	 * @param { InputRoute<T> | undefined } dest 置換先のルート。undefinedの場合は新規作成する
-	 * @param { InputRoute<T> | undefined } src 置換元のルート。stringの場合はpathのみの置換、undefinedの場合はdestの削除のみ行う
+	 * @param { InputRoute | undefined } dest 置換先のルート。undefinedの場合は新規作成する
+	 * @param { InputRoute | undefined } src 置換元のルート。stringの場合はpathのみの置換、undefinedの場合はdestの削除のみ行う
 	 * @return { Route<T> | undefined } srcがundefinedであるときは置換元のルート、そうでない場合は置換結果のルート
 	 */
 	replace(dest, src) { throw new Error('not implemented.'); }
 
 	/**
 	 * ルートの追加
-	 * @param { InputRoute<T> } route 追加するルート
+	 * @param { InputRoute } route 追加するルート
 	 * @return { Route<T> } 追加したルート情報
 	 */
 	add(route) { throw new Error('not implemented.'); }
 
 	/**
 	 * ルートの削除
-	 * @param { InputRoute<T> } route 削除対象のルート情報
+	 * @param { InputRoute } route 削除対象のルート情報
 	 * @return { Route<T> } 削除したルート情報
 	 */
 	remove(route) { throw new Error('not implemented.'); }
 
 	/**
 	 * ルートの取得
-	 * @param { InputRoute<T> } route 取得対象のルート情報
+	 * @param { InputRoute } route 取得対象のルート情報
 	 * @return { ResolveRoute<T> | undefined } 解決したルート情報
 	 */
 	get(route) { throw new Error('not implemented.'); }
@@ -304,8 +305,8 @@ class RouteTable {
 
 	/**
 	 * ルートの置換を行う
-	 * @param { InputRoute<T> | undefined } dest 置換先のルート。undefinedの場合は新規作成する
-	 * @param { InputRoute<T> | undefined } src 置換元のルート。stringの場合はpathのみの置換、undefinedの場合はdestの削除のみ行う
+	 * @param { InputRoute | undefined } dest 置換先のルート。undefinedの場合は新規作成する
+	 * @param { InputRoute | undefined } src 置換元のルート。stringの場合はpathのみの置換、undefinedの場合はdestの削除のみ行う
 	 * @return { Route<T> | undefined } srcがundefinedであるときは置換元のルート、そうでない場合は置換結果のルート
 	 */
 	replace(dest, src) {
@@ -428,7 +429,7 @@ class RouteTable {
 	/**
 	 * ルートの追加
 	 * 既に存在する場合は上書きする
-	 * @param { InputRoute<T> } route 追加するルート
+	 * @param { InputRoute } route 追加するルート
 	 * @return { Route<T> } 追加したルート情報
 	 */
 	add(route) {
@@ -437,7 +438,7 @@ class RouteTable {
 
 	/**
 	 * ルートの削除
-	 * @param { InputRoute<T> } route 削除対象のルート情報
+	 * @param { InputRoute } route 削除対象のルート情報
 	 * @return { Route<T> } 削除したルート情報
 	 */
 	remove(route) {
@@ -468,7 +469,7 @@ class RouteTable {
 
 	/**
 	 * ルートの取得
-	 * @param { InputRoute<T> } route 取得対象のルート情報
+	 * @param { InputRoute } route 取得対象のルート情報
 	 * @return { ResolveRoute<T> | undefined }取得したルート情報
 	 */
 	get(route) {

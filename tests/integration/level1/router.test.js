@@ -1,6 +1,6 @@
 import { RouteTable } from '../../../src/level1/route-table.js';
 import { createTraceRouteElement, Router } from '../../../src/level1/router.js';
-import { jest } from '@jest/globals';
+import { describe, it, expect, jest } from '@jest/globals';
 
 /**
  * @template T
@@ -13,18 +13,11 @@ import { jest } from '@jest/globals';
  */
 
 describe('Router', () => {
-	/** @type { jest.Mock<RouterObserver<T>> } ルーティング通知を受け取るオブザーバのモック  */
-	const mockObserver = jest.fn((route, trace) => {});
-	/** @type { jest.Mock<RouterObserver<T>> } ルートのボディのモック  */
-	const mockBody = jest.fn((route, trace) => {});
-
-	beforeEach(() => {
-		mockObserver.mockClear();
-		mockBody.mockClear();
-	});
-
 	describe('RouteTable', () => {
 		it('ディレクトリパラメータを含む場合のオブザーバが受け取るパス', () => {
+			/** @type { jest.Mock<RouterObserver<string>> } ルーティング通知を受け取るオブザーバのモック  */
+			const mockObserver = jest.fn((route, trace) => {});
+
 			const routeTable = new RouteTable([
 				{ path: '/', body: '/' },
 				{ path: '/:page', body: '/:page' }
@@ -38,21 +31,24 @@ describe('Router', () => {
 		});
 
 		it('複数のルータの結合', () => {
-			/** @type { RouteTable<RouterObserver<T>> } メインのルートテーブル */
+			/** @type { jest.Mock<RouterObserver<string>> } ルートのボディのモック  */
+			const mockBody = jest.fn((route, trace) => {});
+
+			// メインのルートテーブル
 			const routeTable = new RouteTable([
 				{ path: '/', body: mockBody },
 				{ path: '/page1/page1-1', body: mockBody }
 			]);
-			/** @type { Router<RouterObserver<T>, RT, TRE> } メインのルータ */
+			// メインのルータ
 			const router = new Router(routeTable, createTraceRouteElement, (route, trace) => route?.body?.(route, trace));
 
-			/** @type { RouteTable<RouterObserver<T>> } 分散して管理するルートテーブル */
+			// 分散して管理するルートテーブル
 			const subRouteTable = new RouteTable([
 				{ path: '/', body: mockBody },
 				{ path: '/page1-1', body: mockBody },
 				{ path: '/page1-2', body: mockBody }
 			]);
-			/** @type { Router<RouterObserver<T>, RT, TRE> } 分散して管理するルータ */
+			// 分散して管理するルータ
 			const subrouter = new Router(subRouteTable, createTraceRouteElement, (route, trace) => route?.body?.(route, trace));
 
 			routeTable.add({ path: '/page1', segment: true }).body = (route, trace) => {
